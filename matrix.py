@@ -134,6 +134,8 @@ class minesweeper:
                     self.get_matrix()[y + 1, x + 1] != self.__bomb_notation:
                 self.get_matrix()[y + 1, x + 1] += 1  # Check bottom-right
 
+            bomb += 1
+
     def build(self):
         self.build_bombs_position()
         self.clickable_matrix[self.get_matrix() != 0] = 1
@@ -181,6 +183,7 @@ class minesweeper:
 game = minesweeper(size=15, bomb_number=20)
 game.build()
 game.display_original()
+print("\n")
 game.display_clickable_matrix()
 
 
