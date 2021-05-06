@@ -1,60 +1,52 @@
+import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import pyautogui
-import ctypes
 import time
 import keyboard
-import sys
+import ctypes
+
 
 #board-border=30 for each side
 #each tile is a square of 68*68
 #need to resize image to 66
 
 class MainWindow(QMainWindow):
-    def __init__(self, *args, **kwargs):
-        super(MainWindow, self).__init__(*args, **kwargs)
-        self.boardArrayX=[]
-        self.boardArrayY=[]
-        self.boardSize=15 #15*15 tiles
-        self.start=30 #đường viền cho mỗi cạnh của board (board hình vuông) là 30px
-        self.imageSize=65
-        self.windowSize=[1920, 1080]
+    def __init__(self):
+        super(MainWindow, self).__init__()
         self.initUI()
-
-    def initPositionArray(self):
-        for i in range(0, 15):
-            self.boardArrayX.append(self.start+68*i)
-        for j in range(0, 15):
-            self.boardArrayY.append(self.start+68*j)
     
     def addPicture(self, x, y):
         self.tile = QLabel(self)
         self.tile.setScaledContents(True)
-        self.tile.setPixmap(QPixmap(".../resources/images/background_unbordered.png"))
+        self.tile.setPixmap(QPixmap("E:\minesweeper project/python_minesweeper/python_minesweeper/resources/images/background_unbordered.png"))
         self.tile.setGeometry(x, y, self.imageSize, self.imageSize)
+        self.tile.show()
 
     def showWelcomeScreen(self):
         self.background = QLabel(self)
         self.background.setScaledContents(True)
-        self.background.setPixmap(QPixmap(".../resources/images/welcome_screen_background.png"))
-        self.background.setGeometry(0, 0, self.windowSize[0], self.windowSize[1])
+        self.background.setPixmap(QPixmap("E:\minesweeper project/python_minesweeper/python_minesweeper/resources/images/welcome_screen_background.png"))
+        self.background.setGeometry(0, 0, 1920, 1080)
         
-        self.text = QLabel(self)
-        self.text.setScaledContents(True)
-        self.text.setText("- Click to start -")
-        self.text.setGeometry(660, 800, 100, 20)
+        self.start_button = QPushButton(self)
+        self.start_button.setText("~ Click to start ~")
+        self.start_button.setStyleSheet("background-color : rgb(255,255,255);")
+        self.start_button.setGeometry(860, 800, 250, 60)
+        self.start_button.clicked.connect(self.startGame)
 
     def makeTranslucent(self):
         self.overlay = QLabel(self)
         self.overlay.setScaledContents(True)
-        self.overlay.setPixmap(QPixmap(".../resources/images/translucent_overlay.png"))
-        self.overlay.setGeometry(0, 0, self.windowSize[0], self.windowSize[1])
+        self.overlay.setPixmap(QPixmap("E:\minesweeper project/python_minesweeper/python_minesweeper/resources/images/translucent.png"))
+        self.overlay.setGeometry(0, 0, 1920, 1080)
+        self.overlay.show()
 
     def showBoard(self):
         for i in range(0, 15):
             for j in range(0, 15):
-                self.addPicture(self.boardArrayX[i], self.boardArrayY[j])
+                self.addPicture(30+68*i, 30+68*j)
 
     def detectClick(self, button, watchtime = 20):
         if button in (1, '1', 'l', 'L', 'left', 'Left', 'LEFT'):
@@ -71,17 +63,19 @@ class MainWindow(QMainWindow):
         return False
     
     def initUI(self):
+        self.imageSize = 65
+        self.setGeometry(0, 0, 1920, 1080)
         self.setWindowTitle("Minesweeper")
-        self.setGeometry(0, 0, self.windowSize[0], self.windowSize[1])
-        self.initPositionArray()
+        self.setWindowFlags(Qt.FramelessWindowHint)
         self.showWelcomeScreen()
-        if(self.detectClick("L") == True):
-            self.makeTranslucent()
-            self.showBoard()
+        self.showMaximized()
+    
+    def startGame(self):
+        self.makeTranslucent()
+        self.showBoard()
         
 
-if __name__ == "main":
-    app=QApplication(sys.argv)
-    window=MainWindow()
-    window.show()
-    app.exec_()
+app=QApplication(sys.argv)
+window=MainWindow()
+window.show()
+sys.exit(app.exec_())
