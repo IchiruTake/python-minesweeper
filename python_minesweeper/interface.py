@@ -2,6 +2,7 @@ import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from functools import partial
 import pyautogui
 import time
 import keyboard
@@ -9,25 +10,37 @@ import ctypes
 import config
 
 class EnableClickLabel(QLabel):
-    clicked = pyqtSignal()
+    isClicked = pyqtSignal()
     def mouseReleaseEvent(self, QMouseEvent):
         if QMouseEvent.button() == Qt.LeftButton:
-            self.clicked.emit()
+            self.isClicked.emit()
 
 class MainWindow(QMainWindow, QDialog):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.initUI()
+        text = ""
+        isClicked = pyqtSignal()
+
+    def getIndex(self, x=0, y=0) -> str: #theo yêu cầu của záo xư
+        return str(abs(x+15*y))
     
     def addPicture(self, x, y):
-        self.tile = QLabel(self)
+        global text
+        self.tile = EnableClickLabel(self)
         self.tile.setScaledContents(True)
         self.tile.setPixmap(QPixmap(config.element_address["background_unbordered"]))
         self.tile.setGeometry(x, y, self.imageSize, self.imageSize)
+        self.tile.isClicked.connect(lambda: self.afterClicked(x, y))
         self.tile.show()
 
-    def getIndex(self):
-        print("Clicked")
+    def afterClicked(self, x=0, y=0):
+        x = int((x-30)/68) 
+        y = int((y-30)/68)
+        #Index 0-14 hàng đầu, 15-29 hàng 2, ...
+        print("index: ", self.getIndex(x, y))
+        #cộng 1 để ra giá trị đếm đủ 1->15 ô mỗi hàng (tương ứng 0->14 trong array)
+        print("Clicked ô: cột {}, hàng {}".format(x+1, y+1))
 
     def showWelcomeScreen(self):
         self.background = QLabel(self)
