@@ -6,13 +6,15 @@ import pyautogui
 import time
 import keyboard
 import ctypes
+import config
 
+class EnableClickLabel(QLabel):
+    clicked = pyqtSignal()
+    def mouseReleaseEvent(self, QMouseEvent):
+        if QMouseEvent.button() == Qt.LeftButton:
+            self.clicked.emit()
 
-#board-border=30 for each side
-#each tile is a square of 68*68
-#need to resize image to 66
-
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow, QDialog):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.initUI()
@@ -20,16 +22,25 @@ class MainWindow(QMainWindow):
     def addPicture(self, x, y):
         self.tile = QLabel(self)
         self.tile.setScaledContents(True)
-        self.tile.setPixmap(QPixmap("E:\minesweeper project/python_minesweeper/python_minesweeper/resources/images/background_unbordered.png"))
+        self.tile.setPixmap(QPixmap(config.element_address["background_unbordered"]))
         self.tile.setGeometry(x, y, self.imageSize, self.imageSize)
         self.tile.show()
+
+    def getIndex(self):
+        print("Clicked")
 
     def showWelcomeScreen(self):
         self.background = QLabel(self)
         self.background.setScaledContents(True)
-        self.background.setPixmap(QPixmap("E:\minesweeper project/python_minesweeper/python_minesweeper/resources/images/welcome_screen_background.png"))
-        self.background.setGeometry(0, 0, 1920, 1080)
+        self.background.setPixmap(QPixmap(config.mainscreen_image_address["welcome_screen_background"]))
+        self.background.setGeometry(0, 0, config.mainscreen_image_address["size"][0], config.mainscreen_image_address["size"][1])
         
+        self.game_name = QLabel(self)
+        self.game_name.setScaledContents(True)
+        self.game_name.setText("Minesweeper")
+        self.game_name.setGeometry(860, 100, 140, 40)
+        self.game_name.setStyleSheet("background-color : rgb(255,255,255);")
+
         self.start_button = QPushButton(self)
         self.start_button.setText("~ Click to start ~")
         self.start_button.setStyleSheet("background-color : rgb(255,255,255);")
@@ -39,16 +50,17 @@ class MainWindow(QMainWindow):
     def makeTranslucent(self):
         self.overlay = QLabel(self)
         self.overlay.setScaledContents(True)
-        self.overlay.setPixmap(QPixmap("E:\minesweeper project/python_minesweeper/python_minesweeper/resources/images/translucent.png"))
-        self.overlay.setGeometry(0, 0, 1920, 1080)
+        self.overlay.setPixmap(QPixmap(config.mainscreen_image_address["translucent"]))
+        self.overlay.setGeometry(0, 0, config.mainscreen_image_address["size"][0], config.mainscreen_image_address["size"][1])
         self.overlay.show()
 
     def showBoard(self):
         for i in range(0, 15):
             for j in range(0, 15):
-                self.addPicture(30+68*i, 30+68*j)
+                toa_do_x, toa_do_y =config.getTilePos(i, j)
+                self.addPicture(toa_do_x, toa_do_y)
 
-    def detectClick(self, button, watchtime = 20):
+    def detectClick(self, button, watchtime = 20): #functional, but not using QLabel
         if button in (1, '1', 'l', 'L', 'left', 'Left', 'LEFT'):
             self.bnum = 0x01
         elif button in (2, '2', 'r', 'R', 'right', 'Right', 'RIGHT'):
@@ -63,14 +75,17 @@ class MainWindow(QMainWindow):
         return False
     
     def initUI(self):
-        self.imageSize = 65
+        self.imageSize = config.number["size"]
         self.setGeometry(0, 0, 1920, 1080)
         self.setWindowTitle("Minesweeper")
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint) #to hide title bar for full screen ratio
         self.showWelcomeScreen()
         self.showMaximized()
     
     def startGame(self):
+        self.background.hide()
+        self.game_name.hide()
+        self.start_button.hide()
         self.makeTranslucent()
         self.showBoard()
         
