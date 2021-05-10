@@ -1,13 +1,11 @@
-import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from functools import partial
-import pyautogui
+import sys
 import time
-import keyboard
 import ctypes
 import config
+import numpy as np
 
 class EnableClickLabel(QLabel):
     isClicked = pyqtSignal()
@@ -20,27 +18,31 @@ class MainWindow(QMainWindow, QDialog):
         super(MainWindow, self).__init__()
         self.initUI()
         text = ""
+        self.arr = np.array([], dtype=np.object_)
         isClicked = pyqtSignal()
 
     def getIndex(self, x=0, y=0) -> str: #theo yêu cầu của záo xư
-        return str(abs(x+15*y))
+        return str(abs(int((x-30)/68 +15*(y-30)/68)))
     
-    def addPicture(self, x, y):
-        global text
+    def addPicture(self, x, y): #x&y is position on the screen
         self.tile = EnableClickLabel(self)
         self.tile.setScaledContents(True)
         self.tile.setPixmap(QPixmap(config.element_address["background_unbordered"]))
         self.tile.setGeometry(x, y, self.imageSize, self.imageSize)
         self.tile.isClicked.connect(lambda: self.afterClicked(x, y))
         self.tile.show()
+        np.append([self.tile], int((x-30)/68 +15*(y-30)/68)) #convert to index using in-array index formula
+
+    def changeTileColor(self, x, y):
+        self.tile = QLabel(self)
+        self.tile.setPixmap(QPixmap(config.element_address["clicked_unbordered"]))
+        self.tile.setGeometry(x, y, self.imageSize, self.imageSize)
+        self.tile.show()
 
     def afterClicked(self, x=0, y=0):
-        x = int((x-30)/68) 
-        y = int((y-30)/68)
-        #Index 0-14 hàng đầu, 15-29 hàng 2, ...
+        self.changeTileColor(x, y)
         print("index: ", self.getIndex(x, y))
-        #cộng 1 để ra giá trị đếm đủ 1->15 ô mỗi hàng (tương ứng 0->14 trong array)
-        print("Clicked ô: cột {}, hàng {}".format(x+1, y+1))
+        return self.getIndex(x, y)
 
     def showWelcomeScreen(self):
         self.background = QLabel(self)
@@ -50,9 +52,8 @@ class MainWindow(QMainWindow, QDialog):
         
         self.game_name = QLabel(self)
         self.game_name.setScaledContents(True)
-        self.game_name.setText("Minesweeper")
-        self.game_name.setGeometry(860, 100, 140, 40)
-        self.game_name.setStyleSheet("background-color : rgb(255,255,255);")
+        self.game_name.setPixmap(QPixmap(config.mainscreen_image_address["game_name"]))
+        self.game_name.setGeometry(0, 50, config.mainscreen_image_address["size"][0], 240)
 
         self.start_button = QPushButton(self)
         self.start_button.setText("~ Click to start ~")
@@ -90,7 +91,7 @@ class MainWindow(QMainWindow, QDialog):
     def initUI(self):
         self.imageSize = config.number["size"]
         self.setGeometry(0, 0, 1920, 1080)
-        self.setWindowTitle("Minesweeper")
+        self.setWindowTitle("Minesweeper") #omittable
         self.setWindowFlags(Qt.FramelessWindowHint) #to hide title bar for full screen ratio
         self.showWelcomeScreen()
         self.showMaximized()

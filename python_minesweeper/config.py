@@ -31,6 +31,7 @@ mainscreen_image_address = {
     "translucent_overlay" : DIRECTORY + "/resources/images/translucent_overlay.png",
     "translucent" : DIRECTORY + "/resources/images/translucent.png",
     "welcome_screen_background" : DIRECTORY + "/resources/images/welcome_screen_background.png",
+    "game_name" : DIRECTORY + "/resources/images/game_name.png",
     "size" : [1920, 1080],
 }
 
