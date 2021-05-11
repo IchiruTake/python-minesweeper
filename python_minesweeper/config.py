@@ -41,7 +41,11 @@ initial_position = {
 }
 
 def getTileSize(number_of_tile) -> int:
-    return int(((1080 - 60) / number_of_tile) - 3)
+    return int((1080 - 60) / number_of_tile) - 3
 
 def getTilePos(i=0, j=0, tile_size = 65) -> int:
     return [30+tile_size*i+i*3, 30+tile_size*j+j*3]
+
+def getXYfromIndex(index, tile_size, number_of_tile) -> int: #chạy tốt
+    x, y =  30+int(index%number_of_tile)*tile_size+int(index%number_of_tile)*3, 30+tile_size*int(index/number_of_tile)+int(index/number_of_tile)*3
+    return x, y

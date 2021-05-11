@@ -18,8 +18,8 @@ class MainWindow(QMainWindow, QDialog):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.initUI()
-        text = ""
-        self.arr = np.array([], dtype=np.object_)
+        self.arr = np.ndarray((254,), dtype=np.object_)
+        self.array = []
         isClicked = pyqtSignal()
 
     def initUI(self):
@@ -77,35 +77,39 @@ class MainWindow(QMainWindow, QDialog):
 
         for i in range(0, number_of_tile):
             for j in range(0, number_of_tile):
-                toa_do_x, toa_do_y =config.getTilePos(i, j, tile_size)
-                self.addPicture(round(toa_do_x), round(toa_do_y), tile_size)
-
-        if keyboard.is_pressed("Esc"):
-            self.initUI()
+                index = i * number_of_tile + j
+                toa_do_y, toa_do_x =config.getTilePos(i, j, tile_size)
+                self.addPicture(round(toa_do_x), round(toa_do_y), tile_size, index)
     
-    def addPicture(self, x: int, y: int, tile_size: int): #x&y is position on the screen
+    def addPicture(self, x: int, y: int, tile_size: int, index: int): #x&y is position on the screen
         #display các ô (clickable)
         self.tile = EnableClickLabel(self)
         self.tile.setScaledContents(True)
         self.tile.setPixmap(QPixmap(config.element_address["background_unbordered"]))
         self.tile.setGeometry(x, y, tile_size, tile_size)
-        self.tile.isClicked.connect(lambda: self.afterClicked(x, y, tile_size))
+        self.tile.isClicked.connect(lambda: self.afterClicked(index, x, y, tile_size))
         self.tile.show()
-        np.append([self.tile], int((x-30)/tile_size + int(self.number_of_tile)*(y-30)/tile_size)) #convert to index using in-array index formula
+        np.append(self.arr, self.tile)
+        self.array.append(self.tile)
+        print(index)
 
-    def afterClicked(self, x, y, tile_size):
-        self.changeTileColor(x, y, tile_size)
-        print("index: ", self.getIndex(x, y))
-        return self.getIndex(x, y)
+    def afterClicked(self, index, x=0, y=0, tile_size=65): #x, y, tile_size are not needed
+        print("index: ", index)
+        self.changeTileColor(index, tile_size)
+        return index
 
-    def changeTileColor(self, x, y, tile_size):
+    def changeTileColor(self, index, tile_size):
+        '''x, y = config.getXYfromIndex(index, tile_size, self.number_of_tile) 
+        print(x, y)
+        print(tile_size)
         self.tile = QLabel(self)
         self.tile.setPixmap(QPixmap(config.element_address["clicked_unbordered"]))
         self.tile.setGeometry(x, y, tile_size, tile_size)
-        self.tile.show()
+        self.tile.show()'''
 
-    def getIndex(self, x=0, y=0) -> str: #theo yêu cầu của záo xư
-        return str(abs(int((x-30)/68 +15*(y-30)/68)))
+        #Experimental
+        self.array[index].setPixmap(QPixmap(config.element_address["clicked_unbordered"]))
+        self.array[index].show()
 
     def detectClick(self, button, watchtime = 20): #functional, but not using QLabel
         if button in (1, '1', 'l', 'L', 'left', 'Left', 'LEFT'):
@@ -125,4 +129,7 @@ class MainWindow(QMainWindow, QDialog):
 app=QApplication(sys.argv)
 window=MainWindow()
 window.show()
+if keyboard.is_pressed("Esc"):
+    window=MainWindow()
+    window.show()
 sys.exit(app.exec_())
