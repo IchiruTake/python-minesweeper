@@ -40,5 +40,8 @@ initial_position = {
     "tile" : [30, 30],
 }
 
-def getTilePos(i=0, j=0) -> int:
-    return [30+68*i, 30+68*j]
+def getTileSize(number_of_tile) -> int:
+    return int(((1080 - 60) / number_of_tile) - 3)
+
+def getTilePos(i=0, j=0, tile_size = 65) -> int:
+    return [30+tile_size*i+i*3, 30+tile_size*j+j*3]
