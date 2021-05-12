@@ -7,6 +7,9 @@ import ctypes
 import config
 import numpy as np
 import keyboard
+import ray
+
+#ray.init()
 
 class EnableClickLabel(QLabel):
     isClicked = pyqtSignal()
@@ -41,9 +44,11 @@ class MainWindow(QMainWindow, QDialog):
         self.game_name.setGeometry(0, 50, config.mainscreen_image_address["size"][0], 240)
 
         self.input_box = QLineEdit(self)
+        self.input_box.setFont(QFont('Times', 16))
         self.input_box.setGeometry(920, 600, 80, 40)
 
         self.start_button = QPushButton(self)
+        self.start_button.setFont(QFont('Times', 16))
         self.start_button.setText("~ Click to start ~")
         self.start_button.setStyleSheet("background-color : rgb(255,255,255);")
         self.start_button.setGeometry(840, 800, 250, 60)
@@ -62,6 +67,8 @@ class MainWindow(QMainWindow, QDialog):
         self.start_button.hide()
         self.makeTranslucent()
         self.showBoard(self.number_of_tile)
+        #ray.get([self.showClock.remote(self), self.showBoard.remote(self.number_of_tile)]) #run parallel
+        #ray.close()
 
     def makeTranslucent(self):
         #display background ingame
@@ -71,6 +78,7 @@ class MainWindow(QMainWindow, QDialog):
         self.overlay.setGeometry(0, 0, config.mainscreen_image_address["size"][0], config.mainscreen_image_address["size"][1])
         self.overlay.show()
 
+    #@ray.remote
     def showBoard(self, number_of_tile: int):
         #tính toán các biến để display các ô
         tile_size: int = config.getTileSize((number_of_tile))
@@ -91,25 +99,38 @@ class MainWindow(QMainWindow, QDialog):
         self.tile.show()
         np.append(self.arr, self.tile)
         self.array.append(self.tile)
-        print(index)
 
     def afterClicked(self, index, x=0, y=0, tile_size=65): #x, y, tile_size are not needed
-        print("index: ", index)
         self.changeTileColor(index, tile_size)
         return index
 
     def changeTileColor(self, index, tile_size):
-        '''x, y = config.getXYfromIndex(index, tile_size, self.number_of_tile) 
+        x, y = config.getXYfromIndex(index, tile_size, self.number_of_tile) 
         print(x, y)
-        print(tile_size)
-        self.tile = QLabel(self)
-        self.tile.setPixmap(QPixmap(config.element_address["clicked_unbordered"]))
-        self.tile.setGeometry(x, y, tile_size, tile_size)
-        self.tile.show()'''
 
-        #Experimental
         self.array[index].setPixmap(QPixmap(config.element_address["clicked_unbordered"]))
         self.array[index].show()
+
+    @ray.remote
+    def showClock(self):
+        self.second=0
+        self.minute=0
+        self.clock=QLabel(self)
+        self.clock.setFont(QFont('Times', 14))
+        self.clock.setScaledContents(True)
+        self.clock.setText("00:00")
+        self.clock.setGeometry(1600, 200, 80, 50)
+        self.clock.show()
+
+        while self.minute < 60:
+            time.sleep(1)
+            self.second+=1
+            if self.second >= 60:
+                self.minute+=1
+                self.second=0
+            self.temp = str(self.minute)+":"+str(self.second)
+            self.clock.setText(self.temp)
+            self.clock.show()
 
     def detectClick(self, button, watchtime = 20): #functional, but not using QLabel
         if button in (1, '1', 'l', 'L', 'left', 'Left', 'LEFT'):
