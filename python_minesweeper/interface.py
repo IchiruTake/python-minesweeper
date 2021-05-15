@@ -7,6 +7,7 @@ import ctypes
 import config
 import numpy as np
 import keyboard
+import random
 import ray
 
 #ray.init()
@@ -23,6 +24,7 @@ class MainWindow(QMainWindow, QDialog):
         self.initUI()
         self.arr = np.ndarray((254,), dtype=np.object_)
         self.array = []
+        self.IClick = 0
         isClicked = pyqtSignal()
 
     def initUI(self):
@@ -35,13 +37,13 @@ class MainWindow(QMainWindow, QDialog):
     def showWelcomeScreen(self):
         self.background = QLabel(self)
         self.background.setScaledContents(True)
-        self.background.setPixmap(QPixmap(config.mainscreen_image_address["welcome_screen_background"]))
-        self.background.setGeometry(0, 0, config.mainscreen_image_address["size"][0], config.mainscreen_image_address["size"][1])
+        self.background.setPixmap(QPixmap(config.MAINSCREEN_IMAGE_ADDRESS["welcome_screen_background"]))
+        self.background.setGeometry(0, 0, config.MAINSCREEN_IMAGE_ADDRESS["size"][0], config.MAINSCREEN_IMAGE_ADDRESS["size"][1])
         
         self.game_name = QLabel(self)
         self.game_name.setScaledContents(True)
-        self.game_name.setPixmap(QPixmap(config.mainscreen_image_address["game_name"]))
-        self.game_name.setGeometry(0, 50, config.mainscreen_image_address["size"][0], 240)
+        self.game_name.setPixmap(QPixmap(config.MAINSCREEN_IMAGE_ADDRESS["game_name"]))
+        self.game_name.setGeometry(0, 50, config.MAINSCREEN_IMAGE_ADDRESS["size"][0], 240)
 
         self.input_box = QLineEdit(self)
         self.input_box.setFont(QFont('Times', 16))
@@ -50,7 +52,7 @@ class MainWindow(QMainWindow, QDialog):
         self.start_button = QPushButton(self)
         self.start_button.setFont(QFont('Times', 16))
         self.start_button.setText("~ Click to start ~")
-        self.start_button.setStyleSheet("background-color : rgb(255,255,255);")
+        self.start_button.setStyleSheet("background-color : #A9A9A9;")
         self.start_button.setGeometry(840, 800, 250, 60)
         self.start_button.clicked.connect(self.startGame)
 
@@ -74,8 +76,8 @@ class MainWindow(QMainWindow, QDialog):
         #display background ingame
         self.overlay = QLabel(self)
         self.overlay.setScaledContents(True)
-        self.overlay.setPixmap(QPixmap(config.mainscreen_image_address["translucent"]))
-        self.overlay.setGeometry(0, 0, config.mainscreen_image_address["size"][0], config.mainscreen_image_address["size"][1])
+        self.overlay.setPixmap(QPixmap(config.MAINSCREEN_IMAGE_ADDRESS["translucent"]))
+        self.overlay.setGeometry(0, 0, config.MAINSCREEN_IMAGE_ADDRESS["size"][0], config.MAINSCREEN_IMAGE_ADDRESS["size"][1])
         self.overlay.show()
 
     #@ray.remote
@@ -93,7 +95,7 @@ class MainWindow(QMainWindow, QDialog):
         #display các ô (clickable)
         self.tile = EnableClickLabel(self)
         self.tile.setScaledContents(True)
-        self.tile.setPixmap(QPixmap(config.element_address["background_unbordered"]))
+        self.tile.setPixmap(QPixmap(config.ELEMENT_ADDRESS["background_unbordered"]))
         self.tile.setGeometry(x, y, tile_size, tile_size)
         self.tile.isClicked.connect(lambda: self.afterClicked(index, x, y, tile_size))
         self.tile.show()
@@ -102,16 +104,45 @@ class MainWindow(QMainWindow, QDialog):
 
     def afterClicked(self, index, x=0, y=0, tile_size=65): #x, y, tile_size are not needed
         self.changeTileColor(index, tile_size)
+        self.IClick += 1
         return index
 
     def changeTileColor(self, index, tile_size):
-        x, y = config.getXYfromIndex(index, tile_size, self.number_of_tile) 
-        print(x, y)
-
-        self.array[index].setPixmap(QPixmap(config.element_address["clicked_unbordered"]))
+        x, y = config.getXYfromIndex(index, tile_size, self.number_of_tile) #don't need this line
+        self.array[index].setPixmap(QPixmap(config.ELEMENT_ADDRESS["clicked_unbordered"]))
         self.array[index].show()
 
-    @ray.remote
+    #sửa hàm này để lấy value thực. 0<>1 hoặc true<>false hoặc "win"<>"lose". Nhớ sửa lại cho tương ứng trong hàm endGame
+    def getResult(self):
+        if random.randint(0, 5) > 3:
+            return True
+        return False
+
+    #Gọi hàm endGame khi đã mở/flag tất cả các ô, hoặc click trúng bomb
+    def endGame(self):
+        self.result:bool = self.getResult()
+
+        self.result_background=QLabel(self)
+        self.result_background.setScaledContents(True)
+        self.result_background.setPixmap(QPixmap(config.MAINSCREEN_IMAGE_ADDRESS["translucent_overlay"]))
+        self.result_background.setGeometry(0, 0, 1920, 1080)
+        self.result_background.show()
+
+        self.result_text=QLabel(self)
+        self.result_text.setScaledContents(True)
+        self.result_text.setFont(QFont("Times", 57))
+        self.result_text.setStyleSheet("background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #DEB887, stop: 1 #A9A9A9);")
+        self.result_text.setAlignment(Qt.AlignCenter)
+        self.result_text.setGeometry(745, 300, 450, 140)
+
+        if self.result == True:
+            self.result_text.setText("You win")
+        else:
+            self.result_text.setText("You lose")
+
+        self.result_text.show()
+
+    #@ray.remote
     def showClock(self):
         self.second=0
         self.minute=0
