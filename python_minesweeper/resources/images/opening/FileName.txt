@@ -1,4 +1,7 @@
+Background.png ---> Size: (1920, 1080)
 Opening.png ---> Size: (1920, 1080)
+(Background.png là cái nền của Opening.png nha)
+
 Title.png --> Size: Any
 Play.png --> Size: Any
 
