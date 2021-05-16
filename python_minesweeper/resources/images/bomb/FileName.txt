@@ -1,2 +1,5 @@
 Initial Bomb.png
+
 Excited Bomb.png
+
+Size: (65, 65)
