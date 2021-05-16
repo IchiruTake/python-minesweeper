@@ -12,18 +12,15 @@ class minesweeper:
     The main core (logic for the game) (matrix = array)
     + self.size: The shape of the self.__coreMatrix
     + self.__coreMatrix: The main matrix used to defined everything needed. Once assigned, unchanged attribute
-    + self.__AdjacencyMatrix: The array to make __graph flowing if clicking on the position that contains no data in
-                              self.__coreMatrix. When defined, this attribute is unchanged. Counting from horizontal
-                              all -> move to next row
-    + self.__FlagMatrix: The matrix used to defined the position that player assign flags for bomb deactivation.
-                          The matrix can be changed its value.
     + self.interface_matrix: The matrix that user can see on the screen. Attached to the interface
     """
     def __init__(self, size: Union[int, Tuple[int]], verbose: bool = False):
         # [0]: Hyper-parameter Verification
         np.set_printoptions(threshold=maxsize)
         if True:
-            if not isinstance(size, (int, Tuple)):
+            if size is None:
+                size: Tuple[int, int] = (NOTATION["Default Size"], NOTATION["Default Size"])
+            elif not isinstance(size, (int, Tuple)):
                 raise ValueError(" False Initialization. The size should be an integer or tuple.")
 
             if isinstance(size, Tuple):
@@ -51,26 +48,21 @@ class minesweeper:
 
         # [2]: Set Configuration
         self.BombNotation = NOTATION["Bomb Notation"]
-        self.FlagNotation = NOTATION["Flag Notation"]
+        self.FlagNotation = NOTATION["Flag Notation"] if NOTATION["Flag Notation"] not in [0, 1] else -1
+        self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
 
         # [3]: Set Undo & Redo Features
         self.__max_size_for_UndoRedo = 24
         self.__undo_stack: List[np.ndarray] = []
         self.__redo_stack: List[np.ndarray] = []
 
-        # [4]: Set Connection Graph & Attribute
-        self.__AdjacencyMatrix: np.ndarray = np.zeros(shape=(self.__coreMatrix.size, self.__coreMatrix.size),
-                                                      dtype=np.int8)
-        self.__FlagMatrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
-        self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
-
-        # [5]: Set other controller
+        # [4]: Set other controller
         self.verbose = verbose
 
-        # [6]: Gaming Status
+        # [5]: Gaming Status
         self.is_wining: Optional[bool] = None
 
-        # [x]: Running Function
+        # [6]: Running Function
         self._build()
 
     # ----------------------------------------------------------------------------------------------------------------
@@ -122,16 +114,11 @@ class minesweeper:
         if not isinstance(graph_index, int):
             raise TypeError("Hyper-parameter only accepts positive integer value only (index={index})")
 
-        if not (0 <= graph_index < self.size[0] * self.size[1]):
+        if not (0 <= graph_index < self.getNumberOfNodes()):
             raise TypeError("Hyper-parameter is overwhelming (index={} != [0, {}))"
-                            .format(graph_index, self.size[0] * self.size[1]))
+                            .format(graph_index, self.getNumberOfNodes()))
 
         return int(graph_index // self.size[1]), int(graph_index % self.size[1])
-
-    def __update_GraphEdge(self, y: int, x: int, current_graph_index: int) -> None:
-        selection_graph_index = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x)
-        if 0 <= selection_graph_index < self.__AdjacencyMatrix.shape[0]:
-            self.__AdjacencyMatrix[current_graph_index, selection_graph_index] += 1
 
     def _updateInterfaceMatrix(self, graph_index: int) -> None:
         y, x = self._convert_GraphIndex_to_MatrixIndex(graph_index=graph_index)
@@ -202,35 +189,8 @@ class minesweeper:
             bomb += 1  # Update bomb counter
         pass
 
-    @measure_execution_time
-    def _buildAdjacencyMatrix(self) -> None:
-        """
-        Implementation of building graph by activate the edge. In fact, we can assign a new matrix that denote the
-        graph index and use linear searching to find the respective index for connection instead. However, we believe
-        it will cost O(N) instead of O(1). This function should end-up with general-time complexity of O(N) instead
-        of O(N^2)
-        """
-        print("---------------------------------------------------------------------------------------")
-        print("The game core is connecting all of the position by active edge")
-        for graph_index in range(0, self.__AdjacencyMatrix.shape[0]):
-            # [1]: Finding the position in which the graph index is pointing using mathematical formulation
-            y, x = self._convert_GraphIndex_to_MatrixIndex(graph_index=graph_index)
-
-            # [2]: Update all connected position
-            if y - 1 >= 0:
-                self.__update_GraphEdge(y=y - 1, x=x, current_graph_index=graph_index)  # Check Top
-            if y + 1 < self.size[0]:
-                self.__update_GraphEdge(y=y + 1, x=x, current_graph_index=graph_index)  # Check Bottom
-            if x - 1 >= 0:
-                self.__update_GraphEdge(y=y, x=x - 1, current_graph_index=graph_index)  # Check Left
-            if x + 1 < self.size[1]:
-                self.__update_GraphEdge(y=y, x=x + 1, current_graph_index=graph_index)  # Check Right
-
-        pass
-
     def _build(self):
         self._buildBombPositions()
-        self._buildAdjacencyMatrix()
 
     # ----------------------------------------------------------------------------------------------------------------
     # [2.1]: Setter and Getter functions used to perform core-task and UI-task
@@ -285,7 +245,8 @@ class minesweeper:
             self.__undo_stack.pop(0)
         self.__undo_stack.append(deepcopy(self.getInterfaceMatrix()))
 
-    def _recursiveBreadthFirstFlow(self, index: int, recorded_stack: List[int]):
+    def _recursiveDepthFirstFlow(self, index: int, recorded_stack: List[int]):
+        # Time Complexity: O(1.5N) - Auxiliary Space: O(N)
         # Condition to check if that value has been pass yet, else discarded
         if recorded_stack[index] is False:
             # [1]: Add into the matrix
@@ -300,28 +261,28 @@ class minesweeper:
                 # [3]: Flow the graph into four direction: Bottom, Top, Left, Right
                 # [3.1]: Flow to Bottom
                 if y + 1 < self.size[0]:
-                    self._recursiveBreadthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x),
-                                                    recorded_stack=recorded_stack)
+                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x),
+                                                  recorded_stack=recorded_stack)
                 # [3.2]: Flow to Top
                 if y - 1 >= 0:
-                    self._recursiveBreadthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x),
-                                                    recorded_stack=recorded_stack)
+                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x),
+                                                  recorded_stack=recorded_stack)
                 # [3.2]: Flow to Left
                 if x - 1 >= 0:
-                    self._recursiveBreadthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y, x=x - 1),
-                                                    recorded_stack=recorded_stack)
+                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y, x=x - 1),
+                                                  recorded_stack=recorded_stack)
                 # [3.3]: Flow to Right
                 if x + 1 < self.size[1]:
-                    self._recursiveBreadthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y, x=x + 1),
-                                                    recorded_stack=recorded_stack)
+                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y, x=x + 1),
+                                                  recorded_stack=recorded_stack)
 
         pass
 
     def _graphFlowing(self, y_start: int, x_start: int) -> None:
         if self._checkEqual(y=y_start, x=x_start, value=0) is True:
-            visiting_stack: List[bool] = [False] * int(self.size[0] * self.size[1])
+            visiting_stack: List[bool] = [False] * int(self.getNumberOfNodes())
             index_start = self._convert_MatrixIndex_to_GraphIndex(y=y_start, x=x_start)
-            self._recursiveBreadthFirstFlow(index=index_start, recorded_stack=visiting_stack)
+            self._recursiveDepthFirstFlow(index=index_start, recorded_stack=visiting_stack)
 
             for graph_index, value in enumerate(visiting_stack):
                 if value is True:
@@ -329,7 +290,7 @@ class minesweeper:
 
         pass
 
-    def click(self, y: int, x: int, message: str):
+    def click(self, y: int, x: int, message: Optional[str]):
         # Chưa hoàn thiện TODO
         if self.check_if_clickable(y=y, x=x):
             is_bomb = self.check_if_bomb(y=y, x=x)
@@ -361,23 +322,22 @@ class minesweeper:
         return True
 
     def _openingSubmission(self) -> bool:
-        return bool(np.count_nonzero(self.interface_matrix, axis=None) != self.size[0] * self.size[1])
+        return bool(np.count_nonzero(self.interface_matrix, axis=None) != self.getNumberOfNodes())
 
     def _submit(self):
+        # TODO
         self.is_wining = self.check_if_wining()
         return self.is_wining
 
-
-
     # [x] Get Matrix and Display Matrix --------------------------------------------------------
+    def getNumberOfNodes(self) -> int:
+        return self.size[0] * self.size[1]
+
     def getInterfaceMatrix(self) -> np.ndarray:
         return self.interface_matrix
 
     def getCoreMatrix(self) -> np.ndarray:
         return self.__coreMatrix
-
-    def getGraphMatrix(self) -> np.ndarray:
-        return self.__AdjacencyMatrix
 
     def getBombNumber(self) -> int:
         return self.__bombNumber
@@ -385,31 +345,57 @@ class minesweeper:
     def getBombPosition(self, descending: bool = False) -> List[Tuple[int, int]]:
         return self.__bombPosition.copy() if descending is False else list(reversed(self.__bombPosition)).copy()
 
-    def getGraphFromCore(self):
-        pass
+    def getFlagsPosition(self) -> List[List[int]]:
+        return np.argwhere(self.getInterfaceMatrix() == self.FlagNotation).tolist()
 
-    def display_original(self):
+    def displayCoreMatrix(self):
+        print("=" * 100)
+        print("Hashing Core Matrix: ")
         print(self.getCoreMatrix())
-        print()
+        print("Matrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
+              .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
+        print("=" * 100, "\n")
 
-    def display_interface_matrix(self):
+    def displayBetterCoreMatrix(self):
+        print("=" * 100)
+        print("Better Core Matrix: ")
+        matrix: np.ndarray = np.array(self.getCoreMatrix().copy(), dtype=np.object_)
+        matrix[matrix == self.BombNotation] = "*"
+        matrix[matrix == 0] = "_"
+        for value in range(1, 9):
+            matrix[matrix == value] = str(value)
+
+        for row in range(0, matrix.shape[0]):
+            print(matrix[row].tolist())
+        print("\nMatrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
+              .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
+        print("=" * 100, "\n")
+
+    def displayInterfaceMatrix(self):
+        print("=" * 100)
+        print("Hashing Interface Matrix: ")
         matrix = self.getInterfaceMatrix()
         for row in range(0, matrix.shape[0]):
             print(matrix[row].tolist())
-        print()
+        print("=" * 100, "\n")
 
-    def display_graph_matrix(self):
-        print(self.getGraphMatrix())
-        print()
-
+    def displayBetterInterfaceMatrix(self):
+        print("=" * 100)
+        print("Better Interface Matrix: ")
+        matrix: np.ndarray = np.array(self.getInterfaceMatrix().copy(), dtype=np.object_)
+        matrix[matrix == 1] = "A"
+        matrix[matrix == 0] = "_"
+        matrix[matrix == self.FlagNotation] = "F"
+        for row in range(0, matrix.shape[0]):
+            print(matrix[row].tolist())
+        print("=" * 100, "\n")
     # [ ] --------------------------------------------------------
 
 
 game = minesweeper(size=15)
-print(game.getBombNumber())
-game.display_original()
-game.display_interface_matrix()
+game.displayBetterCoreMatrix()
+game.displayBetterInterfaceMatrix()
 
-game.click(y=5, x=5)
-game.display_interface_matrix()
+game.click(y=5, x=5, message=None)
+game.displayBetterInterfaceMatrix()
 
