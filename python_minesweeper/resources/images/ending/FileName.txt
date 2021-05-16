@@ -1,0 +1,9 @@
+Ending.png ---> Size: (1920, 1080)
+
+Win.png --> Size: Any
+Lose.png --> Size: Any
+(Win.png và Lose.png phải cùng size)
+
+Replay.png --> Size: Any
+
+Size: (1920, 1080) sẽ là chuẩn màn hình luôn
