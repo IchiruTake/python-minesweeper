@@ -4,5 +4,9 @@ Opening.png ---> Size: (1920, 1080)
 
 Title.png --> Size: (714, 130)
 Play.png --> Size: (267, 138)
+=======
+Title.png --> Size: Any
+Play.png --> Size: Any
+
 
 Size: (1920, 1080) sẽ là chuẩn màn hình luôn

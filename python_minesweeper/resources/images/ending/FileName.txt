@@ -2,10 +2,17 @@ Background.png ---> Size: (1920, 1080)
 Ending.png ---> Size: (1920, 1080)
 (Background.png là cái nền của Ending.png nha)
 
+
 Win.png --> Size: (918, 373)
 Lose.png --> Size: (918, 373)
 (Win.png và Lose.png phải cùng size)
 
 Replay.png --> Size: (267, 138)
+=======
+Win.png --> Size: Any
+Lose.png --> Size: Any
+(Win.png và Lose.png phải cùng size)
+
+Replay.png --> Size: Any
 
 Size: (1920, 1080) sẽ là chuẩn màn hình luôn

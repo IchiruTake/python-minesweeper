@@ -1,0 +1,3 @@
+Background.png --> Size: (1920, 1080)
+
+Size: (1920, 1080) sẽ là chuẩn màn hình
