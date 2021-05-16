@@ -1,115 +1,113 @@
 import os
-from typing import Dict, Tuple, Union, List, Optional
+from typing import Dict, List, Tuple, Union
 
-DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+DIRECTORY: str = os.path.dirname(os.path.abspath(__file__))
+WINDOW_SIZE: Tuple[int, int] = (1920, 1080)
 
+# -----------------------------------------------------------------------------------------------------------
+# CORE.py
+# "NOTATION": Dictionary about specific notation in core.py
 NOTATION: Dict[str, Union[int, float]] = \
     {
         "Bomb Notation": -20,
-        "Flag Notation": 50,
-        "Bomb Coefficient": 1,
-        "Bomb Ratio": 1/2,
+        "Flag Notation": -1,
+        "Bomb Coefficient": 1.2,
+        "Bomb Ratio": 1 / 2,
+        "Default Size": 15,
     }
 
-#NUMBER: key is the number of bombs of surrounding tile
-NUMBER: Dict[Union[str, int], Union[Tuple[int, int], str, int]] = \
-    {
-        1: DIRECTORY + "/resources/images/one.png", #1 bomb surrounding
-        2: DIRECTORY + "/resources/images/two.png", #2 bombs surrounding
-        3: DIRECTORY + "/resources/images/three.png", #3 bombs surrounding
-        4: DIRECTORY + "/resources/images/four.png", #4 bombs surrounding
-        5: DIRECTORY + "/resources/images/five.png", #5 bombs surrounding
-        6: DIRECTORY + "/resources/images/six.png", #6 bombs surrounding
-        7: DIRECTORY + "/resources/images/seven.png", #7 bombs surrounding
-        8: DIRECTORY + "/resources/images/eight.png", #8 bombs surrounding
-        "size": (65, 65), #size of bomb number's image
-    }
 
-#ELEMENT_ADDRESS: key is element shown when you interact with game
-ELEMENT_ADDRESS = \
-    {
-        "clicked_bordered": DIRECTORY + "/resources/images/clicked_bordered.png", #this is shown when you click on the tile. Image with no white border on edge (dark gray)
-        "clicked_unbordered": DIRECTORY + "/resources/images/clicked_unbordered.png", #this is shown when you click on the tile. Image with white border on edge (dark gray)
-        "background_bordered": DIRECTORY + "/resources/images/background_bordered.png", #tile background when unclicked (gray)
-        "background_unbordered": DIRECTORY + "/resources/images/background_unbordered.png", #tile background when unclicked, (gray with white border)
-        "bomb_icon": DIRECTORY + "/resources/images/bomb_icon.png", #a bomb image
-        "bomb_explode": DIRECTORY + "/resources/images/bomb_explode.png", #an image of explosion, shown when player missclick on a bomb tile
-        "flag_black_background": DIRECTORY + "/resources/images/flag_black_background.png", #flag image, shown when user right click to set the flag on a tile, not preferred to use
-        "flag_no_background": DIRECTORY + "/resources/images/flag_no_background.png", #flag image with preferred transparent background, preferred to use
-        "size": (65, 65), #size of image
-    }
+# -----------------------------------------------------------------------------------------------------------
+# interface.py --> key = -1: Image Size
+# CORE.py Association (Corresponding to y and x in order, no exception for everything)
+# [1]: Number Image
+def getBombNumberImageProperty(key: int) -> Union[Tuple[int, int], str]:
+    # Function to get property of bomb images for display. With key = -1, its values were the image's size
+    # With key != -1, while key represented the number of possible surrounding bombs, its values were directory
+    if not isinstance(key, int):
+        raise TypeError("Your key value is incompatible, try key = -1 or key between [1, 8]")
 
-#MAINSCREEN_IMAGE_ADDRESS: any fullscreen element or elements shown on main screen
-MAINSCREEN_IMAGE_ADDRESS = {
-    "translucent_overlay": DIRECTORY + "/resources/images/translucent_overlay.png", #a blurred overlay, shown when player clicks start game, use at result screen
-    "translucent": DIRECTORY + "/resources/images/translucent.png", #different colored overlay with glass effect, preferred & use this
-    "welcome_screen_background": DIRECTORY + "/resources/images/welcome_screen_background.png", #shown firstly when you start the game
-    "game_name": DIRECTORY + "/resources/images/game_name.png", #game title, image with "Minesweeper" red text
-    "size": (1920, 1080), #general size~window size??
-}
-
-INITIAL_POSITION = {
-    "mainscreen_image" : [0, 0],
-    "tile" : [30, 30],
-}
-
-def getTileSize(number_of_tile) -> int: #calculate tile size base on screen size and number of tile per column
-    return int((1080 - 60) / number_of_tile) - 3
-
-def getTilePos(i=0, j=0, tile_size=65) -> int: #calculate tile position
-    return [30 + tile_size * i + i * 3, 30 + tile_size * j + j * 3]
-
-def getXYfromIndex(index, tile_size, number_of_tile) -> int:  # suy ra index từ tọa độ X và Y của tile
-=======
-NUMBER: Dict[Union[str, int], Union[Tuple[int, int], str, int]] = \
-    {
-        1: DIRECTORY + "/resources/images/one.png",
-        2: DIRECTORY + "/resources/images/two.png",
-        3: DIRECTORY + "/resources/images/three.png",
-        4: DIRECTORY + "/resources/images/four.png",
-        5: DIRECTORY + "/resources/images/five.png",
-        6: DIRECTORY + "/resources/images/six.png",
-        7: DIRECTORY + "/resources/images/seven.png",
-        8: DIRECTORY + "/resources/images/eight.png",
-        "size": (65, 65),
-    }
-
-ELEMENT_ADDRESS = \
-    {
-        "clicked_bordered": DIRECTORY + "/resources/images/clicked_bordered.png",
-        "clicked_unbordered": DIRECTORY + "/resources/images/clicked_unbordered.png",
-        "background_bordered": DIRECTORY + "/resources/images/background_bordered.png",
-        "background_unbordered": DIRECTORY + "/resources/images/background_unbordered.png",
-        "bomb_icon": DIRECTORY + "/resources/images/bomb_icon.png",
-        "bomb_explode": DIRECTORY + "/resources/images/bomb_explode.png",
-        "flag_black_background": DIRECTORY + "/resources/images/flag_black_background.png",
-        "flag_no_background": DIRECTORY + "/resources/images/flag_no_background.png",
-        "size": (65, 65),
-    }
-
-MAINSCREEN_IMAGE_ADDRESS = {
-    "translucent_overlay": DIRECTORY + "/resources/images/translucent_overlay.png",
-    "translucent": DIRECTORY + "/resources/images/translucent.png",
-    "welcome_screen_background": DIRECTORY + "/resources/images/welcome_screen_background.png",
-    "game_name": DIRECTORY + "/resources/images/game_name.png",
-    "size": (1920, 1080),
-}
-
-INITIAL_POSITION = {
-    "mainscreen_image": (0, 0),
-    "tile": (30, 30),
-}
+    return (65, 65) if key == -1 else DIRECTORY + "/resources/images/numbers/{}.png".format(key)
 
 
-def getTileSize(number_of_tile) -> int:
-    return int((1080 - 60) / number_of_tile) - 3
+def getBombPositionForDisplay(y: int, x: int) -> Tuple[int, int]:
+    # y first, x later (core match-up)
+    BOMB_NUMBER_DISPLAY: Dict[str, Tuple[int, int]] = {"Initial": (0, 0), "Separation": (3, 3)}
+    size: Tuple[int, int] = getBombNumberImageProperty(key=-1)
+    return (BOMB_NUMBER_DISPLAY["Initial"][0] + y * size[0] + (y - 1) * BOMB_NUMBER_DISPLAY["Separation"][0],
+            BOMB_NUMBER_DISPLAY["Initial"][1] + x * size[1] + (x - 1) * BOMB_NUMBER_DISPLAY["Separation"][1])
 
 
-def getTilePos(i=0, j=0, tile_size=65) -> int:
-    return [30 + tile_size * i + i * 3, 30 + tile_size * j + j * 3]
+# [2]: Flag Image
+def getFlagImage(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
+    # Opening Key: Initial and Defused
+    if key in ["Initial", "Excited"]:
+        return DIRECTORY + "/resources/images/flag/{} Flag.png".format(key)
+    elif key == -1:
+        return 65, 65
+    raise ValueError("key ({}) is in-valid. Only accept key = [Initial, Excited, -1] only".format(key))
 
 
-def getXYfromIndex(index, tile_size, number_of_tile) -> int:  # chạy tốt
-    x, y = 30 + int(index % number_of_tile) * tile_size + int(index % number_of_tile) * 3, 30 + tile_size * int(
-        index / number_of_tile) + int(index / number_of_tile) * 3
-    return x, y
+# [3]: Bomb Image
+def getBombImage(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
+    # Opening Key: Initial and Defused
+    if key in ["Initial", "Excited"]:
+        return DIRECTORY + "/resources/images/bomb/{} Bomb.png".format(key)
+    elif key == -1:
+        return 65, 65
+    raise ValueError("key ({}) is in-valid. Only accept key = [Initial, Excited, -1] only".format(key))
+
+
+# [4]: Core Background
+def getCoreBackground(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
+    # Opening Key: Initial and Defused
+    if key in ["Initial", "Excited"]:
+        return DIRECTORY + "/resources/images/bomb/{} Bomb.png".format(key)
+    elif key == -1:
+        return 65, 65
+    raise ValueError("key ({}) is in-valid. Only accept key = [Initial, Excited, -1] only".format(key))
+
+
+# -----------------------------------------------------------------------------------------------------------
+# Interface Association
+# [1]: Game Title
+def getGameTitle(get_size: bool) -> Union[str, Tuple[int, int]]:
+    return (1920, 240) if get_size is True else DIRECTORY + "/resources/images/title/Title.png"
+
+
+# [2]: Opening Interface
+def getOpeningInterface(key: str, get_size: bool) -> Union[str, Tuple[int, int]]:
+    main_directory: str = DIRECTORY + "/resources/images/opening/"
+    request_key: List[str] = ["Background", "Opening", "Title", "Play"]
+    if key in request_key:
+        if get_size is False:
+            return main_directory + "{}.png".format(key)
+
+        idx: int = request_key.index(key)
+        if idx in (0, 1):
+            return WINDOW_SIZE
+        # TODO
+        elif idx == 2:
+            return 0, 0
+        elif idx == 3:
+            return 0, 0
+    raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+
+
+# [3]: Ending Interface
+def getEndingInterface(key: str, get_size: bool) -> Union[str, Tuple[int, int]]:
+    main_directory: str = DIRECTORY + "/resources/images/ending/"
+    request_key: List[str] = ["Background", "Ending", "Win", "Lose", "Replay"]
+    if key in request_key:
+        if get_size is False:
+            return main_directory + "{}.png".format(key)
+
+        idx: int = request_key.index(key)
+        if idx in (0, 1):
+            return WINDOW_SIZE
+        # TODO
+        elif idx == (2, 3):
+            return 0, 0
+        elif idx == 4:
+            return 0, 0
+    raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
