@@ -2,7 +2,11 @@ Background.png ---> Size: (1920, 1080)
 Opening.png ---> Size: (1920, 1080)
 (Background.png là cái nền của Opening.png nha)
 
+Title.png --> Size: (714, 130)
+Play.png --> Size: (267, 138)
+=======
 Title.png --> Size: Any
 Play.png --> Size: Any
+
 
 Size: (1920, 1080) sẽ là chuẩn màn hình luôn
