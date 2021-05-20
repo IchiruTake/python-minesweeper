@@ -4,7 +4,8 @@ from sys import maxsize
 from copy import deepcopy
 from logging import warning
 from preprocessing import measure_execution_time
-from config import NOTATION
+from config import CORE_CONFIGURATION as CONFIG, MOUSE_MESSAGE
+import gc
 
 
 class minesweeper:
@@ -19,7 +20,7 @@ class minesweeper:
         np.set_printoptions(threshold=maxsize)
         if True:
             if size is None:
-                size: Tuple[int, int] = (NOTATION["Default Size"], NOTATION["Default Size"])
+                size: Tuple[int, int] = (CONFIG["Default Size"], CONFIG["Default Size"])
             elif not isinstance(size, (int, Tuple)):
                 raise ValueError(" False Initialization. The size should be an integer or tuple.")
 
@@ -38,17 +39,22 @@ class minesweeper:
             if not isinstance(verbose, bool):
                 raise ValueError(" False Initialization. verbose should be boolean")
 
+            if CONFIG["Flag Notation"] == CONFIG["Question Notation"]:
+                raise ValueError("Flag Notation ({}) is not equal with Question Notation ({})."
+                                 .format(CONFIG["Flag Notation"], CONFIG["Question Notation"]))
             pass
 
-        # [1]: Setup Core for data implementation
+        # [1]: Setup Core for Data Implementation
         self.__coreMatrix: np.ndarray = np.zeros(shape=size, dtype=np.int8)
         self.size: Tuple[int, int] = size
         self.__bombPosition: List[Tuple[int, int]] = []
-        self.__bombNumber: int = int(NOTATION["Bomb Coefficient"] * self.__coreMatrix.size ** (NOTATION["Bomb Ratio"]))
+        self.__bombNumber: int = int(CONFIG["Bomb Coefficient"] * self.__coreMatrix.size **
+                                     CONFIG["Bomb Power"])
 
         # [2]: Set Configuration
-        self.BombNotation = NOTATION["Bomb Notation"]
-        self.FlagNotation = NOTATION["Flag Notation"] if NOTATION["Flag Notation"] not in [0, 1] else -1
+        self.BombNotation = CONFIG["Bomb Notation"] if CONFIG["Bomb Notation"] not in range(0, 9) else -20
+        self.FlagNotation = CONFIG["Flag Notation"] if CONFIG["Flag Notation"] not in [0, 1] else -1
+        self.QuestionNotation = CONFIG["Question Notation"] if CONFIG["Question Notation"] not in [0, 1] else -5
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
 
         # [3]: Set Undo & Redo Features
@@ -56,17 +62,16 @@ class minesweeper:
         self.__undo_stack: List[np.ndarray] = []
         self.__redo_stack: List[np.ndarray] = []
 
-        # [4]: Set other controller
+        # [4]: Gaming Status
         self.verbose = verbose
-
-        # [5]: Gaming Status
         self.is_wining: Optional[bool] = None
 
         # [6]: Running Function
         self._build()
 
     # ----------------------------------------------------------------------------------------------------------------
-    # [0]: Core Functions to Task Handling
+    # [0]: Core Functions for Task Handling
+    # [0.1]: For Core Matrix
     def _checkInput(self, y: int, x: int) -> bool:
         # True: Input can be used
         # False: In-valid input
@@ -84,16 +89,13 @@ class minesweeper:
 
         return True
 
-    def _assignCoreMatrix(self, y: int, x: int, value: int) -> None:
+    def _assignCoreNodeByValue(self, y: int, x: int, value: int) -> None:
         self.__coreMatrix[y, x] = value
 
     def _updateCoreValue(self, y: int, x: int) -> None:
         self.__coreMatrix[y, x] += 1
 
-    def _getCoreValue(self, y: int, x: int) -> Optional[int]:
-        return self.__coreMatrix[y, x]
-
-    def _checkEqual(self, y: int, x: int, value: int) -> bool:
+    def _checkCoreNode(self, y: int, x: int, value: int) -> bool:
         # Return Whether the value in the core matrix is equal
         return True if self.__coreMatrix[y, x] == value else False
 
@@ -120,12 +122,34 @@ class minesweeper:
 
         return int(graph_index // self.size[1]), int(graph_index % self.size[1])
 
-    def _updateInterfaceMatrix(self, graph_index: int) -> None:
-        y, x = self._convert_GraphIndex_to_MatrixIndex(graph_index=graph_index)
-        self.getInterfaceMatrix()[y, x] = 1
-
-    def _updateBombPositions(self, y: int, x: int) -> None:
+    def _updateBombPosition(self, y: int, x: int) -> None:
         self.__bombPosition.append((y, x))
+
+    # ----------------------------------------------------------------------------------------------------------------
+    # [0.2]: For Interface Matrix
+    def _openNodeAtInterfaceMatrixByGraph(self, graph_index: int) -> bool:
+        y, x = self._convert_GraphIndex_to_MatrixIndex(graph_index=graph_index)
+        return self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
+
+    def _openNodeAtInterfaceMatrixByMatrix(self, y: int, x: int) -> bool:
+        if self._checkInput(y=y, x=x) is True:
+            self._setInterfaceNode(y=y, x=x, value=1)
+            return True
+        else:
+            warning("No update has been found")
+            return False
+
+    def _setInterfaceNode(self, y: int, x: int, value: int) -> None:
+        self.getInterfaceMatrix()[y, x] = value
+
+    def _checkInterfaceNode(self, y: int, x: int, value: int) -> bool:
+        return True if self.getInterfaceNode(y=y, x=x) == value else False
+
+    def _checkInterfaceValidity(self) -> bool:
+        max_valid_nodes: int = 0
+        for value in (0, 1, self.FlagNotation, self.QuestionNotation):
+            max_valid_nodes += np.argwhere(self.getInterfaceMatrix() not in value).shape[0]
+        return True if max_valid_nodes == self.getNumberOfNodes() else False
 
     # ----------------------------------------------------------------------------------------------------------------
     # [1]: Building Information for Matrix before Running the Game
@@ -141,49 +165,49 @@ class minesweeper:
             x = int(np.random.randint(0, self.size[0], size=1, dtype=np.uint8)[0])
             y = int(np.random.randint(0, self.size[1], size=1, dtype=np.uint8)[0])
 
-            if self._checkEqual(y=y, x=x, value=notation) is True:
+            if self._checkCoreNode(y=y, x=x, value=notation) is True:
                 continue
             else:
-                self._assignCoreMatrix(y=y, x=x, value=notation)
-
+                self._assignCoreNodeByValue(y=y, x=x, value=notation)
+                self._updateBombPosition(y=y, x=x)
             # Check top-left
             if self._checkInput(y=y - 1, x=x - 1) is True:
-                if self._checkEqual(y=y - 1, x=x - 1, value=notation) is False:
+                if self._checkCoreNode(y=y - 1, x=x - 1, value=notation) is False:
                     self._updateCoreValue(y=y - 1, x=x - 1)
 
             # Check top-mid
             if self._checkInput(y=y - 1, x=x) is True:
-                if self._checkEqual(y=y - 1, x=x, value=notation) is False:
+                if self._checkCoreNode(y=y - 1, x=x, value=notation) is False:
                     self._updateCoreValue(y=y - 1, x=x)
 
             # Check top-right
             if self._checkInput(y=y - 1, x=x + 1) is True:
-                if self._checkEqual(y=y - 1, x=x + 1, value=notation) is False:
+                if self._checkCoreNode(y=y - 1, x=x + 1, value=notation) is False:
                     self._updateCoreValue(y=y - 1, x=x + 1)
 
             # Check mid-left
             if self._checkInput(y=y, x=x - 1) is True:
-                if self._checkEqual(y=y, x=x - 1, value=notation) is False:
+                if self._checkCoreNode(y=y, x=x - 1, value=notation) is False:
                     self._updateCoreValue(y=y, x=x - 1)
 
             # Check mid-right
             if self._checkInput(y=y, x=x + 1) is True:
-                if self._checkEqual(y=y, x=x + 1, value=notation) is False:
+                if self._checkCoreNode(y=y, x=x + 1, value=notation) is False:
                     self._updateCoreValue(y=y, x=x + 1)
 
             # Check bottom-left
             if self._checkInput(y=y + 1, x=x - 1) is True:
-                if self._checkEqual(y=y + 1, x=x - 1, value=notation) is False:
+                if self._checkCoreNode(y=y + 1, x=x - 1, value=notation) is False:
                     self._updateCoreValue(y=y + 1, x=x - 1)
 
             # Check bottom-mid
             if self._checkInput(y=y + 1, x=x) is True:
-                if self._checkEqual(y=y + 1, x=x, value=notation) is False:
+                if self._checkCoreNode(y=y + 1, x=x, value=notation) is False:
                     self._updateCoreValue(y=y + 1, x=x)
 
             # Check bottom-right
             if self._checkInput(y=y + 1, x=x + 1) is True:
-                if self._checkEqual(y=y + 1, x=x + 1, value=notation) is False:
+                if self._checkCoreNode(y=y + 1, x=x + 1, value=notation) is False:
                     self._updateCoreValue(y=y + 1, x=x + 1)
 
             bomb += 1  # Update bomb counter
@@ -193,58 +217,48 @@ class minesweeper:
         self._buildBombPositions()
 
     # ----------------------------------------------------------------------------------------------------------------
-    # [2.1]: Setter and Getter functions used to perform core-task and UI-task
-    def setInterfaceMatrix(self, new_matrix: np.ndarray) -> None:
-        if new_matrix.shape != self.getInterfaceMatrix().shape:
-            raise ValueError("The new matrix is not fit with the original matrix : Current {} // New {}"
-                             .format(new_matrix.shape, self.getInterfaceMatrix().shape))
+    # [2]: Undo - Redo Function: Functions used to perform core-task and UI-task: Stack for Undo-Redo
+    def _setInterfaceMatrix(self, new_matrix: np.ndarray) -> None:
+        del self.interface_matrix
         self.interface_matrix = new_matrix
 
-    def updateInterfaceMatrix(self, y: int, x: int) -> None:
-        if self._checkEqual(y=y, x=x, value=0) is False:
-            self.getInterfaceMatrix()[y, x] = 1
-        elif self._checkEqual(y=y, x=x, value=0) is True:
-            print("This position has been clicked")
-        else:
-            warning(" The selected position cannot be found (y={}, x={})".format(y, x))
+    def _reset_undoStack(self) -> None:
+        del self.__undo_stack
+        self.__undo_stack = []
 
-    # [2.2]: Functions used to perform core-task and UI-task: Stack for Undo-Redo
-    def click_undo(self) -> None:
+    def _reset_redoStack(self) -> None:
+        del self.__redo_stack
+        self.__redo_stack = []
+
+    def click_undoStack(self) -> None:
         if not self.__undo_stack:
             warning(" No state is saved")
         else:
             new_matrix = self.__undo_stack.pop()
-            self.setInterfaceMatrix(new_matrix=new_matrix)
+            self._setInterfaceMatrix(new_matrix=new_matrix)
             self.__redo_stack.append(new_matrix)
 
-    def click_redo(self) -> None:
+    def click_redoStack(self) -> None:
         if not self.__redo_stack:
             warning(" No state is saved")
         else:
             new_matrix = self.__redo_stack.pop()
-            self.setInterfaceMatrix(new_matrix=new_matrix)
+            self._setInterfaceMatrix(new_matrix=new_matrix)
             self.__undo_stack.append(new_matrix)
 
-    def reset_undoStack(self) -> None:
-        del self.__undo_stack
-        self.__undo_stack = []
+    def resetStack(self):
+        self._reset_undoStack()
+        self._reset_redoStack()
+        gc.collect()
 
-    def reset_redoStack(self) -> None:
-        del self.__redo_stack
-        self.__redo_stack = []
-
-    def reset_all(self):
-        self.reset_undoStack()
-        self.reset_redoStack()
-
-    # ----------------------------------------------------------------------------------------------------------------
-    # [3]: User Interface Function
-    def update_state(self) -> None:
+    def _updateGamingState(self) -> None:
         if len(self.__undo_stack) > self.__max_size_for_UndoRedo:
             warning("The core: Undo Stack has held too many object. Automatically delete some entity")
             self.__undo_stack.pop(0)
-        self.__undo_stack.append(deepcopy(self.getInterfaceMatrix()))
+        self.__undo_stack.append(self.getInterfaceMatrix().copy())
 
+    # ----------------------------------------------------------------------------------------------------------------
+    # [3]: User Interface Function
     def _recursiveDepthFirstFlow(self, index: int, recorded_stack: List[int]):
         # Time Complexity: O(1.5N) - Auxiliary Space: O(N)
         # Condition to check if that value has been pass yet, else discarded
@@ -257,7 +271,7 @@ class minesweeper:
 
             # Condition to check whether the core matrix that zero.
             # If self.__core[y, x] = 0: No object found, continue to flow; else, don't flow it
-            if self._checkEqual(y=y, x=x, value=0) is True:
+            if self._checkCoreNode(y=y, x=x, value=0) is True:
                 # [3]: Flow the graph into four direction: Bottom, Top, Left, Right
                 # [3.1]: Flow to Bottom
                 if y + 1 < self.size[0]:
@@ -279,76 +293,119 @@ class minesweeper:
         pass
 
     def _graphFlowing(self, y_start: int, x_start: int) -> None:
-        if self._checkEqual(y=y_start, x=x_start, value=0) is True:
+        if self._checkCoreNode(y=y_start, x=x_start, value=0) is True:
             visiting_stack: List[bool] = [False] * int(self.getNumberOfNodes())
             index_start = self._convert_MatrixIndex_to_GraphIndex(y=y_start, x=x_start)
             self._recursiveDepthFirstFlow(index=index_start, recorded_stack=visiting_stack)
 
-            for graph_index, value in enumerate(visiting_stack):
-                if value is True:
-                    self._updateInterfaceMatrix(graph_index=graph_index)
+            for graph_index, state in enumerate(visiting_stack):
+                if state is True:
+                    self._openNodeAtInterfaceMatrixByGraph(graph_index=graph_index)
 
         pass
 
-    def click(self, y: int, x: int, message: Optional[str]):
-        # Chưa hoàn thiện TODO
-        if self.check_if_clickable(y=y, x=x):
-            is_bomb = self.check_if_bomb(y=y, x=x)
-            if is_bomb is True:
-                self.is_wining = False
+    def click(self, y: int, x: int, message: str) -> bool:
+        """
+        Main function used when clicking image the nodes. Return boolean if it is update
 
-            else:
-                pass
-                self._graphFlowing(y_start=y, x_start=x)
+        :param y: The position in y-axis dimension
+        :type y: int
 
-    def check_if_clickable(self, y: int, x: int):
-        if self._checkInput(y=y, x=x) is True and self.getInterfaceMatrix()[y, x] == 0:
+        :param x: The position in x-axis dimension
+        :type x: int
+
+        :param message: The signal received from interface
+        :type message: str
+
+        :return: bool
+        """
+        if message not in MOUSE_MESSAGE.keys():
+            raise ValueError("Re-check the source code for data validation. "
+                             "Clicked mouse has emit unknown message ({})".format(message))
+
+        updating_status: bool = False
+
+        if self.is_wining is None:
+            if self.getInterfaceNode(y=y, x=x) != 1:
+                self._updateGamingState()
+                updating_status = True
+
+            if MOUSE_MESSAGE[message] == "L":
+                if self.getInterfaceNode(y=y, x=x) == 0:
+                    self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
+            elif MOUSE_MESSAGE[message] == "R":
+                if self.getInterfaceNode(y=y, x=x) == 0:
+                    self._setInterfaceNode(y=y, x=x, value=self.FlagNotation)
+                elif self.getInterfaceNode(y=y, x=x) == self.FlagNotation:
+                    self._setInterfaceNode(y=y, x=x, value=self.QuestionNotation)
+                elif self.getInterfaceNode(y=y, x=x) == self.QuestionNotation:
+                    self._setInterfaceNode(y=y, x=x, value=0)
+
+            return updating_status
+        return updating_status
+
+    # ----------------------------------------------------------------------------------------------------------------
+    # [3]: User Interface Function
+    def _checkClickable(self, y: int, x: int) -> bool:
+        if self._checkInput(y=y, x=x) is True and self.getInterfaceNode(y=y, x=x) != 1:
             return True
         return False
 
-    def check_if_bomb(self, y: int, x: int):
-        if self._checkInput(y=y, x=x) is True and self._checkEqual(y=y, x=x, value=self.BombNotation) is True:
+    def _checkBomb(self, y: int, x: int) -> bool:
+        if self._checkInput(y=y, x=x) is True and self._checkCoreNode(y=y, x=x, value=self.BombNotation) is True:
             return True
         return False
 
-    def check_if_wining(self) -> bool:
-        bomb_position: List[Tuple[int, int]] = self.getBombPosition(descending=False)
+    def _checkWining(self) -> bool:
+        # TODO
+        bomb_position: List[Tuple[int, int]] = self.getBombPositions(descending=False)
         for position in range(len(bomb_position) - 1, -1, -1):
             y, x = bomb_position[position]
-            if self._checkEqual(y=y, x=x, value=self.BombNotation) is True:
+            if self._checkInterfaceNode(y=y, x=x, value=self.FlagNotation):
                 bomb_position.pop()
             else:
                 return False
         return True
 
-    def _openingSubmission(self) -> bool:
-        return bool(np.count_nonzero(self.interface_matrix, axis=None) != self.getNumberOfNodes())
+    def openSubmission(self) -> bool:
+        if self.getQuestionPositions().shape[0] == 0:
+            return bool(np.count_nonzero(self.interface_matrix, axis=None) == self.getNumberOfNodes())
+        return False
 
-    def _submit(self):
-        # TODO
-        self.is_wining = self.check_if_wining()
-        return self.is_wining
+    # [x]: Getter and Display Function --------------------------------------------------------
+    # [x.1] Getter Function
+    def getCoreMatrix(self) -> np.ndarray:
+        return self.__coreMatrix
 
-    # [x] Get Matrix and Display Matrix --------------------------------------------------------
-    def getNumberOfNodes(self) -> int:
-        return self.size[0] * self.size[1]
+    def getCoreNode(self, y: int, x: int) -> np.integer:
+        return self.getCoreMatrix()[y, x]
 
     def getInterfaceMatrix(self) -> np.ndarray:
         return self.interface_matrix
 
-    def getCoreMatrix(self) -> np.ndarray:
-        return self.__coreMatrix
+    def getInterfaceNode(self, y: int, x: int):
+        return self.getInterfaceMatrix()[y, x]
+
+    def getNumberOfNodes(self) -> int:
+        return self.size[0] * self.size[1]
 
     def getBombNumber(self) -> int:
         return self.__bombNumber
 
-    def getBombPosition(self, descending: bool = False) -> List[Tuple[int, int]]:
+    def getBombPositions(self, descending: bool = False) -> List[Tuple[int, int]]:
         return self.__bombPosition.copy() if descending is False else list(reversed(self.__bombPosition)).copy()
 
-    def getFlagsPosition(self) -> List[List[int]]:
-        return np.argwhere(self.getInterfaceMatrix() == self.FlagNotation).tolist()
+    def getFlagPositions(self) -> np.ndarray:
+        return np.argwhere(self.getInterfaceMatrix() == self.FlagNotation)
 
-    def displayCoreMatrix(self):
+    def getQuestionPositions(self) -> np.ndarray:
+        return np.argwhere(self.getInterfaceMatrix() == self.QuestionNotation)
+
+    def getGameStatus(self) -> Optional[bool]:
+        return self.is_wining
+
+    # [x.2] Display Function
+    def displayCoreMatrix(self) -> None:
         print("=" * 100)
         print("Hashing Core Matrix: ")
         print(self.getCoreMatrix())
@@ -356,7 +413,7 @@ class minesweeper:
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
         print("=" * 100, "\n")
 
-    def displayBetterCoreMatrix(self):
+    def displayBetterCoreMatrix(self) -> None:
         print("=" * 100)
         print("Better Core Matrix: ")
         matrix: np.ndarray = np.array(self.getCoreMatrix().copy(), dtype=np.object_)
@@ -371,7 +428,7 @@ class minesweeper:
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
         print("=" * 100, "\n")
 
-    def displayInterfaceMatrix(self):
+    def displayInterfaceMatrix(self) -> None:
         print("=" * 100)
         print("Hashing Interface Matrix: ")
         matrix = self.getInterfaceMatrix()
@@ -379,7 +436,7 @@ class minesweeper:
             print(matrix[row].tolist())
         print("=" * 100, "\n")
 
-    def displayBetterInterfaceMatrix(self):
+    def displayBetterInterfaceMatrix(self) -> None:
         print("=" * 100)
         print("Better Interface Matrix: ")
         matrix: np.ndarray = np.array(self.getInterfaceMatrix().copy(), dtype=np.object_)
@@ -396,6 +453,5 @@ game = minesweeper(size=15)
 game.displayBetterCoreMatrix()
 game.displayBetterInterfaceMatrix()
 
-game.click(y=5, x=5, message=None)
+game.click(y=5, x=5, message="None")
 game.displayBetterInterfaceMatrix()
-
