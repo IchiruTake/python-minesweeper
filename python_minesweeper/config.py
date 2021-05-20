@@ -3,17 +3,27 @@ from typing import Dict, List, Tuple, Union
 
 DIRECTORY: str = os.path.dirname(os.path.abspath(__file__))
 WINDOW_SIZE: Tuple[int, int] = (1920, 1080)
+CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by milliseconds)
 
 # -----------------------------------------------------------------------------------------------------------
 # CORE.py
-# "NOTATION": Dictionary about specific notation in core.py
-NOTATION: Dict[str, Union[int, float]] = \
+# "CORE_CONFIGURATION": Dictionary about specific notation in core.py
+CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
     {
         "Bomb Notation": -20,
         "Flag Notation": -1,
-        "Bomb Coefficient": 1.2,
-        "Bomb Ratio": 1 / 2,
+        "Question Notation": -5,
+        "Bomb Coefficient": 0.125,
+        "Bomb Power": 1,
         "Default Size": 15,
+        "Maximum Stack": 24,
+    }
+
+# "MOUSE_MESSAGE": Used to emit a signal when clicking mouse
+MOUSE_MESSAGE: Dict[Union[int, str], Union[int, str]] = \
+    {
+        "LeftMouse": "L",
+        "RightMouse": "R",
     }
 
 
@@ -24,8 +34,8 @@ NOTATION: Dict[str, Union[int, float]] = \
 def getBombNumberImageProperty(key: int) -> Union[Tuple[int, int], str]:
     # Function to get property of bomb images for display. With key = -1, its values were the image's size
     # With key != -1, while key represented the number of possible surrounding bombs, its values were directory
-    if not isinstance(key, int):
-        raise TypeError("Your key value is incompatible, try key = -1 or key between [1, 8]")
+    if not isinstance(key, int) or key not in range(-1, 9):
+        raise TypeError("Your key value is incompatible, try key = -1 or key between [0, 8]")
 
     return (65, 65) if key == -1 else DIRECTORY + "/resources/images/numbers/{}.png".format(key)
 
@@ -59,7 +69,8 @@ def getBombImage(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
 
 
 # [4]: Core Background
-def getCoreBackground(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
+def getGameBackground(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
+    # TODO
     # Opening Key: Initial and Defused
     if key in ["Initial", "Excited"]:
         return DIRECTORY + "/resources/images/bomb/{} Bomb.png".format(key)
@@ -70,13 +81,8 @@ def getCoreBackground(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
 
 # -----------------------------------------------------------------------------------------------------------
 # Interface Association
-# [1]: Game Title
-def getGameTitle(get_size: bool) -> Union[str, Tuple[int, int]]:
-    return (1920, 240) if get_size is True else DIRECTORY + "/resources/images/title/Title.png"
-
-
-# [2]: Opening Interface
-def getOpeningInterface(key: str, get_size: bool) -> Union[str, Tuple[int, int]]:
+# [1]: Opening Interface
+def getOpenInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
     main_directory: str = DIRECTORY + "/resources/images/opening/"
     request_key: List[str] = ["Background", "Opening", "Title", "Play"]
     if key in request_key:
@@ -94,8 +100,8 @@ def getOpeningInterface(key: str, get_size: bool) -> Union[str, Tuple[int, int]]
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
-# [3]: Ending Interface
-def getEndingInterface(key: str, get_size: bool) -> Union[str, Tuple[int, int]]:
+# [2]: Ending Interface
+def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
     main_directory: str = DIRECTORY + "/resources/images/ending/"
     request_key: List[str] = ["Background", "Ending", "Win", "Lose", "Replay"]
     if key in request_key:
