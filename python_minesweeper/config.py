@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 DIRECTORY: str = os.path.dirname(os.path.abspath(__file__))
 WINDOW_SIZE: Tuple[int, int] = (1920, 1080)
@@ -13,13 +13,16 @@ CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
         "Bomb Notation": -20,
         "Flag Notation": -1,
         "Question Notation": -5,
-        "Minimum Coefficient": 0.125,
-        "Bomb Coefficient": 0.15,
-        "Maximum Coefficient": 0.175,
-        "Extreme Coefficient": 0.20,
-        "Bomb Power": 1,
         "Default Size": 15,
         "Maximum Stack": 24,
+    }
+
+DIFFICULTY: Dict[str, Union[int, float]] = \
+    {
+        "Easy": 0.125,
+        "Medium": 0.15,
+        "Hard": 0.175,
+        "Extreme": 0.20,
     }
 
 # "MOUSE_MESSAGE": Used to emit a signal when clicking mouse
@@ -41,9 +44,12 @@ BOMB_NUMBER_DISPLAY: Dict[str, Tuple[int, int]] = \
     }
 
 
-def getBombNumberImage(key: int) -> Union[Tuple[int, int], str]:
-    # Function to get property of bomb images for display. With key = -1, its values were the image's size
-    # With key != -1, while key represented the number of possible surrounding bombs, its values were directory
+def getBombNumberImage(key: Optional[int]) -> Union[Tuple[int, int], str]:
+    # Function to get property of bomb images for display.
+    # If key = None: originated nodes, If key = -1, return its size, else, return its associated images
+    if key is None:
+        return DIRECTORY + "/resources/images/numbers/{}.png".format(key)
+
     if not isinstance(key, int) or key not in range(-1, 9):
         raise TypeError("Your key value is incompatible, try key = -1 or key between [0, 8]")
 
@@ -75,6 +81,11 @@ def getQuestionImage(get_size: bool = False) -> Union[str, Tuple[int, int]]:
     return (65, 65) if get_size is True else "/resources/images/question/Question.png"
 
 
+# [5]: Gaming Background
+def getGamingBackground(get_size: bool = False) -> Union[str, Tuple[int, int]]:
+    return WINDOW_SIZE if get_size is True else "/resources/images/background/Background.png"
+
+
 # -----------------------------------------------------------------------------------------------------------
 # Interface Association
 # [1]: Opening Interface
@@ -99,7 +110,7 @@ def getOpenInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, 
 # [2]: Ending Interface
 def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
     main_directory: str = DIRECTORY + "/resources/images/ending/"
-    request_key: List[str] = ["Background", "Ending", "Win", "Lose", "Replay"]
+    request_key: Tuple[str, str, str, str, str] = ("Background", "Ending", "Win", "Lose", "Replay")
     if key in request_key:
         if get_size is False:
             return main_directory + "{}.png".format(key)
@@ -112,4 +123,15 @@ def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, i
             return 0, 0
         elif idx == 4:
             return 0, 0
+    raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+
+
+# -----------------------------------------------------------------------------------------------------------
+# [3]: Supplementary
+def getUndoRedoImage(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
+    main_directory: str = DIRECTORY + "/resources/images/undo_redo/"
+    request_key: Tuple[str, str] = ("Undo", "Redo")
+    if key in request_key:
+        return main_directory + "{}.png".format(key) if get_size is False else (267, 138)
+
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
