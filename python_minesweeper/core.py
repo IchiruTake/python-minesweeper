@@ -42,6 +42,22 @@ class minesweeper:
             if CONFIG["Flag Notation"] == CONFIG["Question Notation"]:
                 raise ValueError("Flag Notation ({}) is not equal with Question Notation ({})."
                                  .format(CONFIG["Flag Notation"], CONFIG["Question Notation"]))
+
+            if not isinstance(CONFIG["Maximum Stack"], int):
+                raise ValueError("Maximum Stack ({}) should be non-negative integer".format(CONFIG["Maximum Stack"]))
+
+            if CONFIG["Maximum Stack"] <= 0:
+                raise ValueError("Maximum Stack ({}) should be non-negative integer".format(CONFIG["Maximum Stack"]))
+
+            if CONFIG["Bomb Notation"] in range(0, 9):
+                CONFIG["Bomb Notation"]: int = -20
+
+            if CONFIG["Flag Notation"] in (0, 1):
+                CONFIG["Flag Notation"]: int = -1
+
+            if CONFIG["Question Notation"] in (0, 1):
+                CONFIG["Question Notation"]: int = -5
+
             pass
 
         # [1]: Setup Core for Data Implementation
@@ -52,19 +68,20 @@ class minesweeper:
                                      CONFIG["Bomb Power"])
 
         # [2]: Set Configuration
-        self.BombNotation = CONFIG["Bomb Notation"] if CONFIG["Bomb Notation"] not in range(0, 9) else -20
-        self.FlagNotation = CONFIG["Flag Notation"] if CONFIG["Flag Notation"] not in [0, 1] else -1
-        self.QuestionNotation = CONFIG["Question Notation"] if CONFIG["Question Notation"] not in [0, 1] else -5
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
+        self.BombNotation: int = CONFIG["Bomb Notation"]
+        self.FlagNotation: int = CONFIG["Flag Notation"]
+        self.QuestionNotation: int = CONFIG["Question Notation"]
 
         # [3]: Set Undo & Redo Features
-        self.__max_size_for_UndoRedo = 24
+        self._maxStackSizeForUndoRedo = CONFIG["Maximum Stack"]
         self.__undo_stack: List[np.ndarray] = []
         self.__redo_stack: List[np.ndarray] = []
 
         # [4]: Gaming Status
-        self.verbose = verbose
-        self.is_wining: Optional[bool] = None
+        self.verbose: bool = verbose
+        self.is_wining: bool = False
+        self.is_playing: bool = True
 
         # [6]: Running Function
         self._build()
@@ -252,7 +269,7 @@ class minesweeper:
         gc.collect()
 
     def _updateGamingState(self) -> None:
-        if len(self.__undo_stack) > self.__max_size_for_UndoRedo:
+        if len(self.__undo_stack) > self._maxStackSizeForUndoRedo:
             warning("The core: Undo Stack has held too many object. Automatically delete some entity")
             self.__undo_stack.pop(0)
         self.__undo_stack.append(self.getInterfaceMatrix().copy())
@@ -324,8 +341,7 @@ class minesweeper:
                              "Clicked mouse has emit unknown message ({})".format(message))
 
         updating_status: bool = False
-
-        if self.is_wining is None:
+        if self.is_playing is True:
             if self.getInterfaceNode(y=y, x=x) != 1:
                 self._updateGamingState()
                 updating_status = True
@@ -333,6 +349,10 @@ class minesweeper:
             if MOUSE_MESSAGE[message] == "L":
                 if self.getInterfaceNode(y=y, x=x) == 0:
                     self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
+
+                if self._checkBomb(y=y, x=x) is True:
+                    self.is_playing = False
+
             elif MOUSE_MESSAGE[message] == "R":
                 if self.getInterfaceNode(y=y, x=x) == 0:
                     self._setInterfaceNode(y=y, x=x, value=self.FlagNotation)
@@ -401,8 +421,12 @@ class minesweeper:
     def getQuestionPositions(self) -> np.ndarray:
         return np.argwhere(self.getInterfaceMatrix() == self.QuestionNotation)
 
-    def getGameStatus(self) -> Optional[bool]:
+    def checkIfWinning(self) -> bool:
+        self.is_wining = self._checkWining()
         return self.is_wining
+
+    def checkIfPlaying(self) -> bool:
+        return self.is_playing
 
     # [x.2] Display Function
     def displayCoreMatrix(self) -> None:
