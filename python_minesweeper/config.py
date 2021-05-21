@@ -23,6 +23,7 @@ DIFFICULTY: Dict[str, Union[int, float]] = \
         "Medium": 0.15,
         "Hard": 0.175,
         "Extreme": 0.20,
+        "Power": 1.75,
     }
 
 # "MOUSE_MESSAGE": Used to emit a signal when clicking mouse
