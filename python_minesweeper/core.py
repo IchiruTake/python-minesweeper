@@ -67,7 +67,7 @@ class minesweeper:
         self.__coreMatrix: np.ndarray = np.zeros(shape=size, dtype=np.int8)
         self.size: Tuple[int, int] = size
         self.__bombPosition: List[Tuple[int, int]] = []
-        self.__bombNumber: int = int(DIFFICULTY[GameMode] * self.__coreMatrix.size)
+        self.__bombNumber: int = int(DIFFICULTY[GameMode] * self.size[0] ** DIFFICULTY["Power"])
 
         # [2]: Set Configuration
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
@@ -77,8 +77,8 @@ class minesweeper:
 
         # [3]: Set Undo & Redo Features
         self._maxStackSizeForUndoRedo = CONFIG["Maximum Stack"]
-        self.__undo_stack: List[np.ndarray] = []
-        self.__redo_stack: List[np.ndarray] = []
+        self.__undoStack: List[np.ndarray] = []
+        self.__redoStack: List[np.ndarray] = []
 
         # [4]: Gaming Status
         self.verbose: bool = verbose
@@ -242,28 +242,28 @@ class minesweeper:
         self.interface_matrix = new_matrix
 
     def _reset_undoStack(self) -> None:
-        del self.__undo_stack
-        self.__undo_stack = []
+        del self.__undoStack
+        self.__undoStack = []
 
     def _reset_redoStack(self) -> None:
-        del self.__redo_stack
-        self.__redo_stack = []
+        del self.__redoStack
+        self.__redoStack = []
 
     def click_undoStack(self) -> None:
-        if not self.__undo_stack:
+        if not self.__undoStack:
             warning(" No state is saved")
         else:
-            new_matrix = self.__undo_stack.pop()
+            new_matrix = self.__undoStack.pop()
             self._setInterfaceMatrix(new_matrix=new_matrix)
-            self.__redo_stack.append(new_matrix)
+            self.__redoStack.append(new_matrix)
 
     def click_redoStack(self) -> None:
-        if not self.__redo_stack:
+        if not self.__redoStack:
             warning(" No state is saved")
         else:
-            new_matrix = self.__redo_stack.pop()
+            new_matrix = self.__redoStack.pop()
             self._setInterfaceMatrix(new_matrix=new_matrix)
-            self.__undo_stack.append(new_matrix)
+            self.__undoStack.append(new_matrix)
 
     def resetStack(self):
         self._reset_undoStack()
@@ -271,10 +271,10 @@ class minesweeper:
         gc.collect()
 
     def _updateGamingState(self) -> None:
-        if len(self.__undo_stack) > self._maxStackSizeForUndoRedo:
+        if len(self.__undoStack) > self._maxStackSizeForUndoRedo:
             warning("The core: Undo Stack has held too many object. Automatically delete some entity")
-            self.__undo_stack.pop(0)
-        self.__undo_stack.append(self.getInterfaceMatrix().copy())
+            self.__undoStack.pop(0)
+        self.__undoStack.append(self.getInterfaceMatrix().copy())
 
     # ----------------------------------------------------------------------------------------------------------------
     # [3]: User Interface Function
@@ -350,7 +350,11 @@ class minesweeper:
 
             if MOUSE_MESSAGE[message] == "L":
                 if self.getInterfaceNode(y=y, x=x) == 0:
-                    self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
+                    if self._checkCoreNode(y=y, x=x, value=0):
+                        self._graphFlowing(y_start=y, x_start=x)
+                    else:
+                        self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
+
 
                 if self._checkBomb(y=y, x=x) is True:
                     self.is_playing = False
@@ -466,18 +470,19 @@ class minesweeper:
         print("=" * 100)
         print("Better Interface Matrix: ")
         matrix: np.ndarray = np.array(self.getInterfaceMatrix().copy(), dtype=np.object_)
-        matrix[matrix == 1] = "A"
+        matrix[matrix == 1] = "O"
         matrix[matrix == 0] = "_"
         matrix[matrix == self.FlagNotation] = "F"
+        matrix[matrix == self.QuestionNotation] = "?"
         for row in range(0, matrix.shape[0]):
             print(matrix[row].tolist())
         print("=" * 100, "\n")
     # [ ] --------------------------------------------------------
 
 
-game = minesweeper(size=15)
+game = minesweeper(size=16, GameMode="Medium")
 game.displayBetterCoreMatrix()
 game.displayBetterInterfaceMatrix()
 
-game.click(y=5, x=5, message="None")
+game.click(y=5, x=5, message="LeftMouse")
 game.displayBetterInterfaceMatrix()
