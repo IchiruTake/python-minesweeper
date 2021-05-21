@@ -31,21 +31,20 @@ MOUSE_MESSAGE: Dict[Union[int, str], Union[int, str]] = \
 # interface.py --> key = -1: Image Size
 # CORE.py Association (Corresponding to y and x in order, no exception for everything)
 # [1]: Number Image
-def getBombNumberImageProperty(key: int) -> Union[Tuple[int, int], str]:
+BOMB_NUMBER_DISPLAY: Dict[str, Tuple[int, int]] = \
+    {
+        "Initial": (0, 0),
+        "Separation": (3, 3)
+    }
+
+
+def getBombNumberImage(key: int) -> Union[Tuple[int, int], str]:
     # Function to get property of bomb images for display. With key = -1, its values were the image's size
     # With key != -1, while key represented the number of possible surrounding bombs, its values were directory
     if not isinstance(key, int) or key not in range(-1, 9):
         raise TypeError("Your key value is incompatible, try key = -1 or key between [0, 8]")
 
     return (65, 65) if key == -1 else DIRECTORY + "/resources/images/numbers/{}.png".format(key)
-
-
-def getBombPositionForDisplay(y: int, x: int) -> Tuple[int, int]:
-    # y first, x later (core match-up)
-    BOMB_NUMBER_DISPLAY: Dict[str, Tuple[int, int]] = {"Initial": (0, 0), "Separation": (3, 3)}
-    size: Tuple[int, int] = getBombNumberImageProperty(key=-1)
-    return (BOMB_NUMBER_DISPLAY["Initial"][0] + y * size[0] + (y - 1) * BOMB_NUMBER_DISPLAY["Separation"][0],
-            BOMB_NUMBER_DISPLAY["Initial"][1] + x * size[1] + (x - 1) * BOMB_NUMBER_DISPLAY["Separation"][1])
 
 
 # [2]: Flag Image
@@ -68,15 +67,9 @@ def getBombImage(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
     raise ValueError("key ({}) is in-valid. Only accept key = [Initial, Excited, -1] only".format(key))
 
 
-# [4]: Core Background
-def getGameBackground(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
-    # TODO
-    # Opening Key: Initial and Defused
-    if key in ["Initial", "Excited"]:
-        return DIRECTORY + "/resources/images/bomb/{} Bomb.png".format(key)
-    elif key == -1:
-        return 65, 65
-    raise ValueError("key ({}) is in-valid. Only accept key = [Initial, Excited, -1] only".format(key))
+# [4]: Question Mark
+def getQuestionImage(get_size: bool = False) -> Union[str, Tuple[int, int]]:
+    return (65, 65) if get_size is True else "/resources/images/question/Question.png"
 
 
 # -----------------------------------------------------------------------------------------------------------
