@@ -39,10 +39,6 @@ class minesweeper:
             if not isinstance(verbose, bool):
                 raise ValueError(" False Initialization. verbose should be boolean")
 
-            if CONFIG["Flag Notation"] == CONFIG["Question Notation"]:
-                raise ValueError("Flag Notation ({}) is not equal with Question Notation ({})."
-                                 .format(CONFIG["Flag Notation"], CONFIG["Question Notation"]))
-
             if not isinstance(CONFIG["Maximum Stack"], int):
                 raise ValueError("Maximum Stack ({}) should be non-negative integer".format(CONFIG["Maximum Stack"]))
 
@@ -50,14 +46,17 @@ class minesweeper:
                 raise ValueError("Maximum Stack ({}) should be non-negative integer".format(CONFIG["Maximum Stack"]))
 
             if CONFIG["Bomb Notation"] in range(0, 9):
-                CONFIG["Bomb Notation"]: int = -20
+                raise ValueError("CONFIG[Bomb Notation] should not in the range of [0, 8]")
 
             if CONFIG["Flag Notation"] in (0, 1):
-                CONFIG["Flag Notation"]: int = -1
+                raise ValueError("CONFIG[Flag Notation] should not in the range of [0, 1]")
 
             if CONFIG["Question Notation"] in (0, 1):
-                CONFIG["Question Notation"]: int = -5
+                raise ValueError("CONFIG[Question Notation] should not in the range of [0, 1]")
 
+            if CONFIG["Flag Notation"] == CONFIG["Question Notation"]:
+                raise ValueError("Flag Notation ({}) is not equal with Question Notation ({})."
+                                 .format(CONFIG["Flag Notation"], CONFIG["Question Notation"]))
             pass
 
         # [1]: Setup Core for Data Implementation

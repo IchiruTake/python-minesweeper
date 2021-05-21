@@ -15,6 +15,11 @@ class Number_CoreUI(QLabel):
 
     updatingSignalSender = pyqtSignal(int, int, str)
 
+    # The node for displaying function only
+    # _imageInterface[0]: Starting Block when Playing, _imageInterface[1]: Value Block when Opened,
+    # _bombInterface[0]: Bomb Node for Displaying, _bombInterface[1]: Bomb Exploded when Clicked,
+    # _flagInterface[0]: Flag Node when Assigning, _flagInterface[1]: Flag Node if Defused,
+
     def __init__(self, y: int, x: int, value: int, imageScalingSize: Union[float, int] = 1, *args, **kwargs):
         # [0]: Hyper-parameter Verification
         if True:
@@ -67,9 +72,9 @@ class Number_CoreUI(QLabel):
             [number_displayer["Initial"][0] + int(self.y * self._scalingSize * self._imageSize[0]),
              number_displayer["Initial"][1] + int(self.x * self._scalingSize * self._imageSize[1])]
         size = int(self._imageSize[1] * self._scalingSize)
-        if self.x != 0:
-            pos[0] += number_displayer["Separation"][1]
         if self.y != 0:
+            pos[0] += number_displayer["Separation"][1]
+        if self.x != 0:
             pos[1] += number_displayer["Separation"][0]
         self.setGeometry(pos[1], pos[0], size, size)
 
@@ -93,6 +98,7 @@ class Number_CoreUI(QLabel):
             print("No update has been applied")
 
     def updateImage(self) -> None:
+        # TODO
         if self._interfaceStatus == 1:
             self.setPixmap(a0=QPixmap(self._imageInterface[1]))
         else:
@@ -107,10 +113,27 @@ class Number_CoreUI(QLabel):
         self.update()
         self.show()
 
-    def reveal(self) -> None:
+    def reveal(self) -> bool:
         # TODO
-        if self._value in range(1, 9):
-            self.setPixmap(a0=QPixmap(self._imageInterface[1]))
+        reveal_status: bool = False
+        if self._interfaceStatus != CONFIG["Question Notation"]:
+            if self._isMine is False:
+                if self._value in range(1, 9):
+                    self.setPixmap(a0=QPixmap(self._imageInterface[1]))
+                else:
+                    self.setPixmap(a0=QPixmap(self._bombInterface[0]))
+            else:
+                if self._value == 1:
+                    self.setPixmap(a0=QPixmap(self._bombInterface[1]))
+                elif self._interfaceStatus == CONFIG["Flag Notation"]:
+                    self.setPixmap(a0=QPixmap(self._flagInterface[1]))
+            reveal_status = True
+
+            self._resetImageSize()
+            self.update()
+            self.show()
+
+        return reveal_status
 
     def reset(self) -> None:
         self.y = -1
