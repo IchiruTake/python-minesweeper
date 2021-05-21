@@ -1,1 +1,1 @@
-HELLO
+This folder represents project documentation
