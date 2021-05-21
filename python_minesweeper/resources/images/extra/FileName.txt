@@ -1,0 +1,4 @@
+Undo.png
+Redo.png
+Submit.png
+Size: Cùng Size, nhưng hãy nhỏ vừa đủ
