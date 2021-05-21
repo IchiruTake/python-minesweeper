@@ -53,7 +53,7 @@ class Number_CoreUI(QLabel):
         # _bombInterface: The image path of 'bomb' block, _flagInterface: The image path of 'flag' block
         # _questionInterface: The image path of 'question' block
         self._imageSize: List[int] = list(getBombNumberImage(key=-1))
-        self._imageInterface: Tuple[str, str] = (getBombNumberImage(key=0), getBombNumberImage(key=self._value))
+        self._imageInterface: Tuple[str, str] = (getBombNumberImage(key=None), getBombNumberImage(key=self._value))
         self._bombInterface: Tuple[str, str] = (getBombImage(key="Initial"), getBombImage(key="Excited"))
         self._flagInterface: Tuple[str, str] = (getFlagImage(key="Initial"), getFlagImage(key="Excited"))
         self._questionInterface: str = getQuestionImage(get_size=False)
@@ -85,25 +85,22 @@ class Number_CoreUI(QLabel):
         self.setUpdatesEnabled(True)
         self.setEnabled(True)
         self.setScaledContents(True)
+        self.setAcceptDrops(False)
 
         self._initializeImage()
 
         self.update()
         self.show()
 
-    def updateStatus(self, interfaceStatus: int):
-        if interfaceStatus in (0, -1, CONFIG["Flag Notation"], CONFIG["Question Notation"]):
-            self._interfaceStatus = interfaceStatus
-        else:
-            print("No update has been applied")
-
     def updateImage(self) -> None:
-        # TODO
         if self._interfaceStatus == 1:
-            self.setPixmap(a0=QPixmap(self._imageInterface[1]))
+            if self.checkIfMine() is False:  # Representing Number
+                self.setPixmap(a0=QPixmap(self._imageInterface[1]))
+            else:  # Displaying the bomb that has been clicked
+                self.reveal()
         else:
             if self._interfaceStatus == 0:
-                self.setVisible(False)
+                self.setPixmap(a0=QPixmap(self._imageInterface[0]))
             elif self._interfaceStatus == CONFIG["Flag Notation"]:
                 self.setPixmap(a0=QPixmap(self._flagInterface[0]))
             elif self._interfaceStatus == CONFIG["Question Notation"]:
@@ -114,19 +111,21 @@ class Number_CoreUI(QLabel):
         self.show()
 
     def reveal(self) -> bool:
-        # TODO
         reveal_status: bool = False
         if self._interfaceStatus != CONFIG["Question Notation"]:
-            if self._isMine is False:
-                if self._value in range(1, 9):
+            if self.checkIfMine() is False:
+                if self._interfaceStatus == -1:  # If this is a flag that is NOT placed on the bomb
+                    self.setPixmap(a0=QPixmap(self._flagInterface[0]))
+                else:  # Representing Number
                     self.setPixmap(a0=QPixmap(self._imageInterface[1]))
+            else:
+                if self._interfaceStatus == -1:  # If this is a flag that is placed on the bomb
+                    self.setPixmap(a0=QPixmap(self._flagInterface[1]))
+                elif self._interfaceStatus == 1:  # If user accidentally activated the bomb
+                    self.setPixmap(a0=QPixmap(self._bombInterface[1]))
                 else:
                     self.setPixmap(a0=QPixmap(self._bombInterface[0]))
-            else:
-                if self._value == 1:
-                    self.setPixmap(a0=QPixmap(self._bombInterface[1]))
-                elif self._interfaceStatus == CONFIG["Flag Notation"]:
-                    self.setPixmap(a0=QPixmap(self._flagInterface[1]))
+
             reveal_status = True
 
             self._resetImageSize()
@@ -140,7 +139,6 @@ class Number_CoreUI(QLabel):
         self.x = -1
         self._value = 0
         self._interfaceStatus = 0
-        self._isMine = False
 
     # ----------------------------------------------------------------------------------------------------------
     # [1]: Interface Function
@@ -149,12 +147,21 @@ class Number_CoreUI(QLabel):
         self.updatingSignalSender.emit(self.y, self.x, msg[e.button()])
 
     # ----------------------------------------------------------------------------------------------------------
-    # [x]: Getter Function
+    # [x]: Getter & Check and Setter Function
     def getPosition(self) -> Tuple[int, int]:
         return self.y, self.x
 
     def getValue(self) -> int:
         return self._value
 
-    def getIsMine(self) -> bool:
-        return self._isMine
+    def checkIfMine(self) -> bool:
+        return self._value == CONFIG["Bomb Notation"]
+
+    def getInterfaceStatus(self) -> int:
+        return self._interfaceStatus
+
+    def updateStatus(self, interfaceStatus: int):
+        if interfaceStatus in (0, -1, CONFIG["Flag Notation"], CONFIG["Question Notation"]):
+            self._interfaceStatus = interfaceStatus
+        else:
+            print("No update has been applied")
