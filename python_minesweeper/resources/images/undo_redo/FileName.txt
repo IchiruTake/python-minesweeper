@@ -1,0 +1,3 @@
+Undo.png
+Redo.png
+Size: (267, 138)
