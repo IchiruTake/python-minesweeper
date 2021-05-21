@@ -4,7 +4,7 @@ from sys import maxsize
 from copy import deepcopy
 from logging import warning
 from preprocessing import measure_execution_time
-from config import CORE_CONFIGURATION as CONFIG, MOUSE_MESSAGE
+from config import CORE_CONFIGURATION as CONFIG, MOUSE_MESSAGE, DIFFICULTY
 import gc
 
 
@@ -15,7 +15,7 @@ class minesweeper:
     + self.__coreMatrix: The main matrix used to defined everything needed. Once assigned, unchanged attribute
     + self.interface_matrix: The matrix that user can see on the screen. Attached to the interface
     """
-    def __init__(self, size: Union[int, Tuple[int]], verbose: bool = False):
+    def __init__(self, size: Union[int, Tuple[int]], verbose: bool = False, GameMode: str = "Medium"):
         # [0]: Hyper-parameter Verification
         np.set_printoptions(threshold=maxsize)
         if True:
@@ -57,14 +57,17 @@ class minesweeper:
             if CONFIG["Flag Notation"] == CONFIG["Question Notation"]:
                 raise ValueError("Flag Notation ({}) is not equal with Question Notation ({})."
                                  .format(CONFIG["Flag Notation"], CONFIG["Question Notation"]))
+
+            if GameMode not in DIFFICULTY.keys():
+                raise ValueError("Game Mode should be defined in here ({})".format(tuple(DIFFICULTY.keys())))
+
             pass
 
         # [1]: Setup Core for Data Implementation
         self.__coreMatrix: np.ndarray = np.zeros(shape=size, dtype=np.int8)
         self.size: Tuple[int, int] = size
         self.__bombPosition: List[Tuple[int, int]] = []
-        self.__bombNumber: int = int(CONFIG["Bomb Coefficient"] * self.__coreMatrix.size **
-                                     CONFIG["Bomb Power"])
+        self.__bombNumber: int = int(DIFFICULTY[GameMode] * self.__coreMatrix.size)
 
         # [2]: Set Configuration
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
