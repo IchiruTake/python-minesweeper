@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Union, Optional
 
 DIRECTORY: str = os.path.dirname(os.path.abspath(__file__))
 WINDOW_SIZE: Tuple[int, int] = (1920, 1080)
+DIALOG_SIZE: Tuple[int, int] = (300, 250)
 CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by milliseconds)
 
 # -----------------------------------------------------------------------------------------------------------
@@ -17,14 +18,25 @@ CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
         "Maximum Stack": 24,
     }
 
-DIFFICULTY: Dict[str, Union[int, float]] = \
+__EASY: Tuple[float, float] = (0.125, 1.75)
+__MEDIUM: Tuple[float, float] = (0.15, 1.8)
+__HARD: Tuple[float, float] = (0.2, 1.8)
+__EXTREME: Tuple[float, float] = (0.225, 1.875)
+
+DIFFICULTY: Dict[str, Tuple] = \
     {
-        "Easy": 0.125,
-        "Medium": 0.15,
-        "Hard": 0.175,
-        "Extreme": 0.20,
-        "Power": 1.75,
+        "Easy": __EASY,
+        "Medium": __MEDIUM,
+        "Hard": __HARD,
+        "Extreme": __EXTREME,
     }
+
+
+def difficulty_validation(key: str) -> Tuple[int, int]:
+    if key in DIFFICULTY.keys():
+        return DIFFICULTY[key]
+    raise ValueError("key ({}) is in-valid. Only accept key = {} only".format(key, list(DIFFICULTY.keys())))
+
 
 # "MOUSE_MESSAGE": Used to emit a signal when clicking mouse
 MOUSE_MESSAGE: Dict[Union[int, str], Union[int, str]] = \
@@ -136,3 +148,23 @@ def getUndoRedoImage(key: str, get_size: bool = False) -> Union[str, Tuple[int, 
         return main_directory + "{}.png".format(key) if get_size is False else (267, 138)
 
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+
+
+# -----------------------------------------------------------------------------------------------------------
+# [4]: Extra Function
+def estimateBombLevel():
+    game_play: Dict[str, int] = {"Tiny": 8, "Small": 16, "Small-Med": 25,
+                                 "Medium": 40, "Large": 75, "Extreme": 99}
+    for game_key, game_value in game_play.items():
+        for difficulty_key, difficulty_value in DIFFICULTY.items():
+            bomb: int = int(difficulty_value[0] * game_value ** difficulty_value[1])
+            nodes: int = game_value * game_value
+            print("(Size: {} --- Difficulty: {}) --> Bomb Number(s): {} / {} (Ratio: {} % - Overwhelming: {})"
+                  .format(game_key, difficulty_key, bomb, nodes, round(bomb / nodes * 100, 2), 9 * bomb >= nodes))
+        print()
+
+
+def getRelativePath(path: str) -> str:
+    if isinstance(path, str):
+        return path.replace(DIRECTORY, "")
+    raise ValueError("Invalid Path ({})".format(path))
