@@ -1,2 +1,2 @@
-Icon.ico
+Icon.png
 Size: (48, 48)
