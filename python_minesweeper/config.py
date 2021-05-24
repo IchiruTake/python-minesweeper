@@ -139,6 +139,17 @@ def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, i
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
+# [3]: Dialog Interface
+def getDialogBackground(get_size: bool = False) -> Union[str, Tuple[int, int]]:
+    main_directory: str = DIRECTORY + "/resources/images/dialog/"
+    return (165, 165) if get_size is True else main_directory + "Dialog.png"
+
+
+def getIcon(get_size: bool = False) -> Union[str, Tuple[int, int]]:
+    main_directory: str = DIRECTORY + "/resources/images/icon/"
+    return (48, 48) if get_size is True else main_directory + "Icon.ico"
+
+
 # -----------------------------------------------------------------------------------------------------------
 # [3]: Supplementary
 def getUndoRedoImage(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
@@ -148,7 +159,6 @@ def getUndoRedoImage(key: str, get_size: bool = False) -> Union[str, Tuple[int, 
         return main_directory + "{}.png".format(key) if get_size is False else (267, 138)
 
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
-
 
 # -----------------------------------------------------------------------------------------------------------
 # [4]: Extra Function
