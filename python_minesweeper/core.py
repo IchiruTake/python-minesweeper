@@ -65,8 +65,9 @@ class minesweeper:
         self.__coreMatrix: np.ndarray = np.zeros(shape=size, dtype=np.int8)
         self.size: Tuple[int, int] = size
         self.__bombPosition: List[Tuple[int, int]] = []
-        self.__bombNumber: int = int(DIFFICULTY[difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
-                                     DIFFICULTY[difficulty][1])
+        self._bombNumber: int = int(DIFFICULTY[difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
+                                    DIFFICULTY[difficulty][1])
+        self._remainingFlags: int = self._bombNumber
 
         # [2]: Set Configuration
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
@@ -81,8 +82,8 @@ class minesweeper:
 
         # [4]: Gaming Status
         self.verbose: bool = verbose
-        self.is_wining: bool = False
-        self.is_playing: bool = True
+        self.VictoryStatus: bool = False
+        self.PlayingStatus: bool = True
 
         # [6]: Running Function
         self._build()
@@ -107,7 +108,7 @@ class minesweeper:
 
         return True
 
-    def _assignCoreNodeByValue(self, y: int, x: int, value: int) -> None:
+    def _setCoreValue(self, y: int, x: int, value: int) -> None:
         self.__coreMatrix[y, x] = value
 
     def _updateCoreValue(self, y: int, x: int) -> None:
@@ -179,14 +180,14 @@ class minesweeper:
         bomb: int = 0
         notation: int = self.BombNotation
 
-        while bomb < self.__bombNumber:
+        while bomb < self._bombNumber:
             x = int(np.random.randint(0, self.size[0], size=1, dtype=np.uint8)[0])
             y = int(np.random.randint(0, self.size[1], size=1, dtype=np.uint8)[0])
 
             if self._checkCoreNode(y=y, x=x, value=notation) is True:
                 continue
             else:
-                self._assignCoreNodeByValue(y=y, x=x, value=notation)
+                self._setCoreValue(y=y, x=x, value=notation)
                 self._updateBombPosition(y=y, x=x)
             # Check top-left
             if self._checkInput(y=y - 1, x=x - 1) is True:
@@ -251,6 +252,8 @@ class minesweeper:
     def click_undoStack(self) -> None:
         if not self.__undoStack:
             warning(" No state is saved")
+        elif self.checkIfPlayable() is False:
+            warning(" You cannot play at current time")
         else:
             new_matrix = self.__undoStack.pop()
             self._setInterfaceMatrix(new_matrix=new_matrix)
@@ -259,6 +262,8 @@ class minesweeper:
     def click_redoStack(self) -> None:
         if not self.__redoStack:
             warning(" No state is saved")
+        elif self.checkIfPlayable() is False:
+            warning(" You cannot play at current time")
         else:
             new_matrix = self.__redoStack.pop()
             self._setInterfaceMatrix(new_matrix=new_matrix)
@@ -269,7 +274,7 @@ class minesweeper:
         self._reset_redoStack()
         gc.collect()
 
-    def _updateGamingState(self) -> None:
+    def _savePreviousState(self) -> None:
         if len(self.__undoStack) > self._maxStackSizeForUndoRedo:
             warning("The core: Undo Stack has held too many object. Automatically delete some entity")
             self.__undoStack.pop(0)
@@ -310,7 +315,7 @@ class minesweeper:
 
         pass
 
-    def _graphFlowing(self, y_start: int, x_start: int) -> None:
+    def _graphExpansion(self, y_start: int, x_start: int) -> None:
         if self._checkCoreNode(y=y_start, x=x_start, value=0) is True:
             visiting_stack: List[bool] = [False] * int(self.getNumberOfNodes())
             index_start = self._convert_MatrixIndex_to_GraphIndex(y=y_start, x=x_start)
@@ -322,51 +327,51 @@ class minesweeper:
 
         pass
 
-    def click(self, y: int, x: int, message: str) -> bool:
-        """
-        Main function used when clicking image the nodes. Return boolean if it is update
-
-        :param y: The position in y-axis dimension
-        :type y: int
-
-        :param x: The position in x-axis dimension
-        :type x: int
-
-        :param message: The signal received from interface
-        :type message: str
-
-        :return: bool
-        """
+    def click(self, y: int, x: int, message: str) -> None:
+        # Attach function used when clicking image on the interface nodes
+        # Note that self.click() is also responsible for controlling whether playing can continue playing the game
         if message not in MOUSE_MESSAGE.keys():
             raise ValueError("Re-check the source code for data validation. "
                              "Clicked mouse has emit unknown message ({})".format(message))
 
-        updating_status: bool = False
-        if self.is_playing is True:
-            if self.getInterfaceNode(y=y, x=x) != 1:
-                self._updateGamingState()
-                updating_status = True
+        if self.PlayingStatus is True:
+            # [1]: Save the previous state
+            self._savePreviousState()
 
+            # [2]: Click
+            # [2.1]: Click by left-mouse
             if MOUSE_MESSAGE[message] == "L":
-                if self.getInterfaceNode(y=y, x=x) == 0:
+                # [2.1.1]: Click by left-mouse only works on deactivated interface node.
+                # If the associated core node is empty, do graph_flowing; Else, just open
+                # self._graphExpansion guarantee it does not touch the bomb
+                if self._checkInterfaceNode(y=y, x=x, value=0) is True:
                     if self._checkCoreNode(y=y, x=x, value=0):
-                        self._graphFlowing(y_start=y, x_start=x)
+                        self._graphExpansion(y_start=y, x_start=x)
+
                     else:
                         self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
+                        if self.checkBomb(y=y, x=x) is True:
+                            self.PlayingStatus = False
+                            self.VictoryStatus = False
 
-                if self.checkBomb(y=y, x=x) is True:
-                    self.is_playing = False
-
+            # [2.2]: Click by left-mouse
             elif MOUSE_MESSAGE[message] == "R":
+                # If that interface node has not been opened. Assign as Flag
                 if self.getInterfaceNode(y=y, x=x) == 0:
                     self._setInterfaceNode(y=y, x=x, value=self.FlagNotation)
+                    self._remainingFlags -= 1
+
+                # If that interface node was assigned as Flag. Assign as Question
                 elif self.getInterfaceNode(y=y, x=x) == self.FlagNotation:
                     self._setInterfaceNode(y=y, x=x, value=self.QuestionNotation)
+                    self._remainingFlags += 1
+
+                # If that interface node was assigned as Question. Unassigned it
                 elif self.getInterfaceNode(y=y, x=x) == self.QuestionNotation:
                     self._setInterfaceNode(y=y, x=x, value=0)
-
-            return updating_status
-        return updating_status
+        else:
+            warning(" You cannot play at current time.")
+        pass
 
     # ----------------------------------------------------------------------------------------------------------------
     # [3]: User Interface Function
@@ -380,21 +385,23 @@ class minesweeper:
             return True
         return False
 
-    def checkWining(self) -> bool:
-        # TODO
-        bomb_position: List[Tuple[int, int]] = self.getBombPositions(descending=False)
-        for position in range(len(bomb_position) - 1, -1, -1):
-            y, x = bomb_position[position]
-            if self._checkInterfaceNode(y=y, x=x, value=self.FlagNotation):
-                bomb_position.pop()
-            else:
-                return False
-        return True
-
-    def openSubmission(self) -> bool:
-        if self.getQuestionPositions().shape[0] == 0:
-            return bool(np.count_nonzero(self.interface_matrix, axis=None) == self.getNumberOfNodes())
-        return False
+    def checkGamingStatus(self) -> None:
+        # In the game there are ton's of condition to be validate as winning the game
+        # [1]: No flags remaining and No Questions Mark
+        # [2]: All the flags has been assigned correctly in bomb position
+        if self.getQuestionPositions().shape[0] == 0 and self.getRemainingFlags() == 0:
+            bomb_position: List[Tuple[int, int]] = self.getBombPositions(descending=False)
+            for position in range(len(bomb_position) - 1, -1, -1):
+                y, x = bomb_position[position]
+                if self._checkInterfaceNode(y=y, x=x, value=self.FlagNotation):
+                    bomb_position.pop()
+                else:
+                    self.VictoryStatus = False
+                    break
+            if not bomb_position:
+                self.PlayingStatus = False
+                self.VictoryStatus = True
+        pass
 
     # [x]: Getter and Display Function --------------------------------------------------------
     # [x.1] Getter Function
@@ -411,13 +418,25 @@ class minesweeper:
         return self.getInterfaceMatrix()[y, x]
 
     def getNumberOfNodes(self) -> int:
-        return self.size[0] * self.size[1]
+        return self.getNumberOfNodesInVerticalAxis() * self.getNumberOfNodesInHorizontalAxis()
+
+    def getNumberOfNodesInVerticalAxis(self) -> int:
+        return self.size[0]
+
+    def getNumberOfNodesInHorizontalAxis(self) -> int:
+        return self.size[1]
 
     def getBombNumber(self) -> int:
-        return self.__bombNumber
+        return self._bombNumber
 
     def getBombPositions(self, descending: bool = False) -> List[Tuple[int, int]]:
         return self.__bombPosition.copy() if descending is False else list(reversed(self.__bombPosition)).copy()
+
+    def getActivationPosition(self) -> np.ndarray:
+        return np.argwhere(self.getInterfaceMatrix() != 0)
+
+    def getOpeningPositions(self) -> np.ndarray:
+        return np.argwhere(self.getInterfaceMatrix() == 1)
 
     def getFlagPositions(self) -> np.ndarray:
         return np.argwhere(self.getInterfaceMatrix() == self.FlagNotation)
@@ -425,12 +444,14 @@ class minesweeper:
     def getQuestionPositions(self) -> np.ndarray:
         return np.argwhere(self.getInterfaceMatrix() == self.QuestionNotation)
 
-    def checkIfWinning(self) -> bool:
-        self.is_wining = self.checkWining()
-        return self.is_wining
+    def getRemainingFlags(self) -> int:
+        return self._remainingFlags
 
-    def checkIfPlaying(self) -> bool:
-        return self.is_playing
+    def checkIfVictory(self) -> bool:
+        return self.VictoryStatus
+
+    def checkIfPlayable(self) -> bool:
+        return self.PlayingStatus
 
     # [x.2] Display Function
     def displayCoreMatrix(self) -> None:
@@ -476,12 +497,3 @@ class minesweeper:
             print(matrix[row].tolist())
         print("=" * 100, "\n")
     # [ ] --------------------------------------------------------
-
-"""
-game = minesweeper(size=16, GameMode="Medium")
-game.displayBetterCoreMatrix()
-game.displayBetterInterfaceMatrix()
-
-game.click(y=5, x=5, message="LeftMouse")
-game.displayBetterInterfaceMatrix()
-"""
