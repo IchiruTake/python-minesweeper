@@ -1,2 +1,2 @@
 Dialog.png
-Size (165, 165)
+Size (127, 127)
