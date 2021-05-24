@@ -1,0 +1,3 @@
+Background.png
+Background1.png
+Size: (300, 250)
