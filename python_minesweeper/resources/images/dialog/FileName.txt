@@ -1,3 +1,2 @@
-Background.png
-Background1.png
-Size: (300, 250)
+Background.png (300, 300)
+Icon.ico (128, 128)
