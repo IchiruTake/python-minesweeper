@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 import time
 import config
-from typing import Tuple, List, Union, Optional
+from typing import Tuple, List, Union, Optional, Callable
 from core import minesweeper
 from component_interface import InterfaceNode, GamingMode
 
@@ -36,9 +36,19 @@ class GameWindow(QMainWindow):
         self._updatingTimerClock1.timeout.connect(self._updateSettingClock1)
         self._updatingTimerClock1.start(config.CLOCK_UPDATE_SPEED)
 
-        self._playingDate: Optional[float] = None
-        self._playingTime: Optional[float] = None
-        self._startingTime: Optional[float] = None
+        self._startingDate: Optional[float] = None  # Used to save the date when playing the game TODO
+        self._startingTime: Optional[float] = None  # Used to save the time (hour/minutes/seconds) when playing the game
+        # TODO
+
+        self._playingTime: Optional[float] = None  # Used to save the time of playing when start the match
+        self._playingRunningTime: Optional[float] = None  # Used to save the time of playing when start the match
+        self._countingQTimerClock2: QTimer = QTimer(self)  # This clock only activate when you start the game TODO
+        self._countingQTimerClock2.timeout.connect(self._updateSettingClock2)
+
+        self._countingQLCDClock2: QLCDNumber = QLCDNumber(self)
+        # self._countingQLCDClock2.setGeometry() TODO
+        self._countingQLCDClock2.display(self._playingRunningTime)
+
 
         # ----------------------------------------------------------------------------------------------------------
         # [3.1]: Opening Interface
@@ -58,6 +68,7 @@ class GameWindow(QMainWindow):
     # ----------------------------------------------------------------------------------------------------------
     # [1]: Setup Function
     def _setup(self):
+        # TODO
         # [1]: Initialize Window
         if True:
             self.setEnabled(True)
@@ -65,6 +76,9 @@ class GameWindow(QMainWindow):
             self.setUpdatesEnabled(True)
             self.setVisible(True)
             self.setFocus()
+            self.setWindowIcon(QIcon(config.getIcon(get_size=False)))
+            self.setIconSize(QSize(*config.getIcon(get_size=True)))
+            self.setWindowIconText("Minesweeper")
 
         # [2.1]: Opening Interface
         if True:
@@ -93,10 +107,19 @@ class GameWindow(QMainWindow):
 
         # [3]: Playing Ground
 
+        # [4]: Extra Attribute
+        if True:
+            self._countingQLCDClock2.setDecMode()
+            self._countingQLCDClock2.setDigitCount(6)
+            self._countingQLCDClock2.setNumDigits(6)
+            self._countingQLCDClock2.setMinimumHeight(200)
+            self._countingQLCDClock2.setStyleSheet("color: red; border-style: outset")
+            self._countingQLCDClock2.setSmallDecimalPoint(True)
+            pass
+
     # ----------------------------------------------------------------------------------------------------------
     # [2]: Interface Function
     def _assignGame(self, width: int, height: int, difficulty: str, name: str):
-        from time import sleep
         # This is the function called (slots) of the input dialog that would raise when click on play button
         self.setMatrixSize(width=width, height=height)
         self.setDifficultyLevel(difficulty=difficulty)
@@ -139,35 +162,74 @@ class GameWindow(QMainWindow):
 
             # Close the setting dialog when necessary
             if self._gameSetting is True:
-                self._gameSettingTiming -= config.CLOCK_UPDATE_SPEED * 2.5
+                self._gameSettingTiming -= config.CLOCK_UPDATE_SPEED * 3.5
                 if self._gameSettingTiming <= 0:
                     self._gameSetting = False
                     self.dialogSignal.emit()
                     self._build()
 
+    def _startSettingClock2(self):
+        # TODO
+        pass
+
+    def _updateSettingClock2(self):
+        # TODO
+        pass
+
     # ----------------------------------------------------------------------------------------------------------
-    # [4]: Game Building Time
+    # [4]: Gaming Time
+    # [4.1]: Initialization
     def _build(self):
+        # TODO
         # [1]: Setup Game Engine
         # [1.1]: Setup Game Engine
         self.__gameCore = minesweeper(size=self._playingMatrixSize, difficulty=self._playingDifficulty, verbose=False)
-        temporary_interface_matrix: np.ndarray = self.__gameCore.getInterfaceMatrix()
-        temporary_core_matrix: np.ndarray = self.__gameCore.getCoreMatrix()
+        getNode: Callable = self.__gameCore.getCoreNode
+        y_size: int = self.__gameCore.getNumberOfNodesInVerticalAxis()
+        x_size: int = self.__gameCore.getNumberOfNodesInHorizontalAxis()
 
         # [1.2]: Finding Image Scaling Size
-        size: Tuple[int, int] = config.NODES_SIZE
-        scale: Tuple[float, float] = (size[0] / config.getBombNumberImage(key=-1)[0],
-                                      size[1] / config.getBombNumberImage(key=-1)[1])
-        print(size, scale)
-        self.interface_matrix = [[0] * temporary_interface_matrix.shape[1]] * temporary_interface_matrix.shape[0]
-        print(self.interface_matrix)
+        size: List[int] = list(config.NODES_SIZE)
+        scale: List[float] = [size[0] / config.getBombNumberImage(key=-1)[0],
+                              size[1] / config.getBombNumberImage(key=-1)[1]]
 
-        for row in range(0, temporary_core_matrix.shape[0]):
-            for col in range(0, temporary_core_matrix.shape[1]):
-                node = InterfaceNode(row, col, int(temporary_core_matrix[row, col]), scale, self.__gameCore.click, self)
+        # [1.3]: Scale if not fit with the matrix. Note that we also have extra section on top for drawing
 
-                self.interface_matrix[row][col] = node
+        # [2]: Build Interface Matrix
+        self.interface_matrix = [[InterfaceNode(y, x, int(getNode(y=y, x=x)), tuple(scale), self.clickOnNodes, self)
+                                  for x in range(0, x_size)] for y in range(0, y_size)]
 
+        # [3]
+
+    def build(self):
+        self._build()
+
+    # [4.2]: Matrix Clicking
+    def clickOnNodes(self, y: int, x: int, mouse: str):
+        # TODO
+        # Attached function that become an observer to receive - transmit communication
+        # [1]: Update the core matrix
+        self.__gameCore.click(y=y, x=x, message=mouse)
+
+        # [2]: Get the interface matrix & Update
+        # If the core does not allow to continue playing. Stopping the game
+        if self.__gameCore.checkIfPlayable() is True:
+            for y in range(0, self.__gameCore.getNumberOfNodesInVerticalAxis()):
+                for x in range(0, self.__gameCore.getNumberOfNodesInHorizontalAxis()):
+                    self.interface_matrix[y][x].updateStatus(interfaceStatus=self.__gameCore.getInterfaceNode(y=y, x=x))
+                    self.interface_matrix[y][x].reveal()
+
+        else:
+            for y in range(0, self.__gameCore.getNumberOfNodesInVerticalAxis()):
+                for x in range(0, self.__gameCore.getNumberOfNodesInHorizontalAxis()):
+                    self.interface_matrix[y][x].updateStatus(interfaceStatus=self.__gameCore.getInterfaceNode(y=y, x=x))
+                    self.interface_matrix[y][x].updateGamingImage()
+
+    # ----------------------------------------------------------------------------------------------------------
+    # [5]: Window (Interface)
+    def activateOpeningInterface(self):
+        # TODO
+        pass
 
 
     # ----------------------------------------------------------------------------------------------------------
@@ -196,3 +258,17 @@ class GameWindow(QMainWindow):
 
     def deactivateGameSetting(self) -> None:
         self._gameSetting = False
+
+    def displayInterfaceMatrixStatus(self):
+        copy_version = np.zeros(shape=(self._playingMatrixSize[0], self._playingMatrixSize[1]), dtype=np.uint8)
+        for row in range(len(self.interface_matrix)):
+            for col in range(len(self.interface_matrix[row])):
+                copy_version[row, col] = self.interface_matrix[row][col].getInterfaceStatus()
+            print(copy_version[row])
+
+    def displayInterfaceNodesValue(self):
+        copy_version = np.zeros(shape=(self._playingMatrixSize[0], self._playingMatrixSize[1]), dtype=np.int8)
+        for row in range(len(self.interface_matrix)):
+            for col in range(len(self.interface_matrix[row])):
+                copy_version[row, col] = self.interface_matrix[row][col].getValue()
+            print(copy_version[row])
