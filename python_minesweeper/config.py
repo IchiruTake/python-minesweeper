@@ -3,8 +3,10 @@ from typing import Dict, List, Tuple, Union, Optional
 
 DIRECTORY: str = os.path.dirname(os.path.abspath(__file__))
 WINDOW_SIZE: Tuple[int, int] = (1920, 1080)
-DIALOG_SIZE: Tuple[int, int] = (300, 250)
+DIALOG_SIZE: Tuple[int, int] = (300, 300)
 CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by milliseconds)
+UPDATING_TIMING: int = 1000
+NODES_SIZE: Tuple[int, int] = (20, 20)
 
 # -----------------------------------------------------------------------------------------------------------
 # CORE.py
@@ -52,8 +54,8 @@ MOUSE_MESSAGE: Dict[Union[int, str], Union[int, str]] = \
 # [1]: Number Image
 BOMB_NUMBER_DISPLAY: Dict[str, Tuple[int, int]] = \
     {
-        "Initial": (0, 0),
-        "Separation": (3, 3)
+        "Initial": (3, 3),
+        "Separation": (int(NODES_SIZE[0] // 3.5), int(NODES_SIZE[1] // 3.5))
     }
 
 
@@ -112,11 +114,10 @@ def getOpenInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, 
         idx: int = request_key.index(key)
         if idx in (0, 1):
             return WINDOW_SIZE
-        # TODO
         elif idx == 2:
-            return 0, 0
+            return 714, 130
         elif idx == 3:
-            return 0, 0
+            return 267, 138
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
@@ -131,11 +132,10 @@ def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, i
         idx: int = request_key.index(key)
         if idx in (0, 1):
             return WINDOW_SIZE
-        # TODO
         elif idx == (2, 3):
-            return 0, 0
+            return 918, 373
         elif idx == 4:
-            return 0, 0
+            return 267, 138
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
