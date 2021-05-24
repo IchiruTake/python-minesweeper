@@ -1,0 +1,2 @@
+Icon.ico
+Size: (48, 48)
