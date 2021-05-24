@@ -15,7 +15,7 @@ class minesweeper:
     + self.__coreMatrix: The main matrix used to defined everything needed. Once assigned, unchanged attribute
     + self.interface_matrix: The matrix that user can see on the screen. Attached to the interface
     """
-    def __init__(self, size: Union[int, Tuple[int, int]] = 16, GameMode: str = "Medium", verbose: bool = False):
+    def __init__(self, size: Union[int, Tuple[int, int]] = 16, difficulty: str = "Medium", verbose: bool = False):
         # [0]: Hyper-parameter Verification
         np.set_printoptions(threshold=maxsize)
         if True:
@@ -58,15 +58,15 @@ class minesweeper:
                 raise ValueError("Flag Notation ({}) is not equal with Question Notation ({})."
                                  .format(CONFIG["Flag Notation"], CONFIG["Question Notation"]))
 
-            difficulty_validation(key=GameMode)
+            difficulty_validation(key=difficulty)
             pass
 
         # [1]: Setup Core for Data Implementation
         self.__coreMatrix: np.ndarray = np.zeros(shape=size, dtype=np.int8)
         self.size: Tuple[int, int] = size
         self.__bombPosition: List[Tuple[int, int]] = []
-        self.__bombNumber: int = int(DIFFICULTY[GameMode][0] * 0.5 * (self.size[0] + self.size[1]) **
-                                     DIFFICULTY[GameMode][1])
+        self.__bombNumber: int = int(DIFFICULTY[difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
+                                     DIFFICULTY[difficulty][1])
 
         # [2]: Set Configuration
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
@@ -354,7 +354,7 @@ class minesweeper:
                     else:
                         self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
 
-                if self._checkBomb(y=y, x=x) is True:
+                if self.checkBomb(y=y, x=x) is True:
                     self.is_playing = False
 
             elif MOUSE_MESSAGE[message] == "R":
@@ -370,17 +370,17 @@ class minesweeper:
 
     # ----------------------------------------------------------------------------------------------------------------
     # [3]: User Interface Function
-    def _checkClickable(self, y: int, x: int) -> bool:
+    def checkClickable(self, y: int, x: int) -> bool:
         if self._checkInput(y=y, x=x) is True and self.getInterfaceNode(y=y, x=x) != 1:
             return True
         return False
 
-    def _checkBomb(self, y: int, x: int) -> bool:
+    def checkBomb(self, y: int, x: int) -> bool:
         if self._checkInput(y=y, x=x) is True and self._checkCoreNode(y=y, x=x, value=self.BombNotation) is True:
             return True
         return False
 
-    def _checkWining(self) -> bool:
+    def checkWining(self) -> bool:
         # TODO
         bomb_position: List[Tuple[int, int]] = self.getBombPositions(descending=False)
         for position in range(len(bomb_position) - 1, -1, -1):
@@ -426,7 +426,7 @@ class minesweeper:
         return np.argwhere(self.getInterfaceMatrix() == self.QuestionNotation)
 
     def checkIfWinning(self) -> bool:
-        self.is_wining = self._checkWining()
+        self.is_wining = self.checkWining()
         return self.is_wining
 
     def checkIfPlaying(self) -> bool:
