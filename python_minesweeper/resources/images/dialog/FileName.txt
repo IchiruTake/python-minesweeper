@@ -1,3 +1,2 @@
-Background.png
-Background1.png
-Size: (300, 250)
+Dialog.png
+Size (165, 165)
