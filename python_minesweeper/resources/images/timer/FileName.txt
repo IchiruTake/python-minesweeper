@@ -1,0 +1,2 @@
+Timer.png
+Size: (65, 65)
