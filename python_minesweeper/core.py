@@ -249,19 +249,28 @@ class minesweeper:
         del self.__redoStack
         self.__redoStack = []
 
-    def click_undoStack(self) -> None:
+    def clickUndo(self) -> None:
         if not self.__undoStack:
-            warning(" No state is saved")
+            warning(" No state of UNDO is saved")
         elif self.checkIfPlayable() is False:
             warning(" You cannot play at current time")
         else:
             new_matrix = self.__undoStack.pop()
             self._setInterfaceMatrix(new_matrix=new_matrix)
+
+            if len(self.__redoStack) > self._maxStackSizeForUndoRedo:
+                warning("The core: REDO Stack has held too many object. Automatically delete some entity")
+                if CONFIG["Clean Time"] == 1:
+                    self.__redoStack.pop(0)
+                else:
+                    self.__redoStack = self.__redoStack[CONFIG["Clean Time"]:].copy()
+                    gc.collect()
+                    
             self.__redoStack.append(new_matrix)
 
-    def click_redoStack(self) -> None:
+    def clickRedo(self) -> None:
         if not self.__redoStack:
-            warning(" No state is saved")
+            warning(" No state of REDO is saved")
         elif self.checkIfPlayable() is False:
             warning(" You cannot play at current time")
         else:
@@ -276,8 +285,12 @@ class minesweeper:
 
     def _savePreviousState(self) -> None:
         if len(self.__undoStack) > self._maxStackSizeForUndoRedo:
-            warning("The core: Undo Stack has held too many object. Automatically delete some entity")
-            self.__undoStack.pop(0)
+            warning("The core: UNDO Stack has held too many object. Automatically delete some entity")
+            if CONFIG["Clean Time"] == 1:
+                self.__undoStack.pop(0)
+            else:
+                self.__undoStack = self.__undoStack[CONFIG["Clean Time"]:].copy()
+                gc.collect()
         self.__undoStack.append(self.getInterfaceMatrix().copy())
 
     # ----------------------------------------------------------------------------------------------------------------
