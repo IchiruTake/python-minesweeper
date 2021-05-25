@@ -255,6 +255,9 @@ class minesweeper:
         elif self.checkIfPlayable() is False:
             warning(" You cannot play at current time")
         else:
+            warning(" Add to REDO")
+            self.__redoStack.append(self.getInterfaceMatrix().copy())
+
             new_matrix = self.__undoStack.pop()
             self._setInterfaceMatrix(new_matrix=new_matrix)
 
@@ -265,8 +268,6 @@ class minesweeper:
                 else:
                     self.__redoStack = self.__redoStack[CONFIG["Clean Time"]:].copy()
                     gc.collect()
-                    
-            self.__redoStack.append(new_matrix)
 
     def clickRedo(self) -> None:
         if not self.__redoStack:
@@ -274,9 +275,19 @@ class minesweeper:
         elif self.checkIfPlayable() is False:
             warning(" You cannot play at current time")
         else:
+            warning(" Add to UNDO")
+            self.__undoStack.append(self.getInterfaceMatrix().copy())
+
             new_matrix = self.__redoStack.pop()
             self._setInterfaceMatrix(new_matrix=new_matrix)
-            self.__undoStack.append(new_matrix)
+
+            if len(self.__undoStack) > self._maxStackSizeForUndoRedo:
+                warning("The core: UNDO Stack has held too many object. Automatically delete some entity")
+                if CONFIG["Clean Time"] == 1:
+                    self.__undoStack.pop(0)
+                else:
+                    self.__undoStack = self.__undoStack[CONFIG["Clean Time"]:].copy()
+                    gc.collect()
 
     def resetStack(self):
         self._reset_undoStack()
@@ -284,6 +295,7 @@ class minesweeper:
         gc.collect()
 
     def _savePreviousState(self) -> None:
+        warning(" Save previous state")
         if len(self.__undoStack) > self._maxStackSizeForUndoRedo:
             warning("The core: UNDO Stack has held too many object. Automatically delete some entity")
             if CONFIG["Clean Time"] == 1:
@@ -292,6 +304,8 @@ class minesweeper:
                 self.__undoStack = self.__undoStack[CONFIG["Clean Time"]:].copy()
                 gc.collect()
         self.__undoStack.append(self.getInterfaceMatrix().copy())
+        print("Redo: ", self.__redoStack)
+        print("Undo: ", self.__undoStack)
 
     # ----------------------------------------------------------------------------------------------------------------
     # [3]: User Interface Function
