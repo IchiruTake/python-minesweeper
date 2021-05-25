@@ -1,1 +1,0 @@
-Clock-face.png --> Size: (160, 160)
