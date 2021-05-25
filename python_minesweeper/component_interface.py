@@ -19,7 +19,7 @@ class InterfaceNode(QLabel):
     # _imageInterface[0]: Starting Block when Playing, _imageInterface[1]: Value Block when Opened,
     # _bombInterface[0]: Bomb Node for Displaying, _bombInterface[1]: Bomb Exploded when Clicked,
     # _flagInterface[0]: Flag Node when Assigning, _flagInterface[1]: Flag Node if Defused,
-
+    # _currentImage: Image at current state represents, use when hovering or pressed (clicked)
     def __init__(self, y: int, x: int, value: int, scalingFactor: Union[Tuple[float, float], float, int] = 1/6.5,
                  slot: Callable = None, *args, **kwargs):
         # [0]: Hyper-parameter Verification
@@ -60,6 +60,7 @@ class InterfaceNode(QLabel):
         if self._value in range(0, 9):
             self._imageInterface: Tuple[str, str] = (getBombNumberImage(key=None), getBombNumberImage(key=self._value))
         elif self._isMine is True:
+            # Adaptation Purpose Only
             self._imageInterface: Tuple[str, str] = (getBombNumberImage(key=None), getBombImage(key="Excited"))
         else:
             print("False Nodes: y:{} - x:{} ---> Value: {}; isBomb: {}".format(self.y, self.x, self._value, self._isMine))
@@ -67,6 +68,8 @@ class InterfaceNode(QLabel):
         self._bombInterface: Tuple[str, str] = (getBombImage(key="Initial"), getBombImage(key="Excited"))
         self._flagInterface: Tuple[str, str] = (getFlagImage(key="Initial"), getFlagImage(key="Excited"))
         self._questionInterface: str = getQuestionImage(get_size=False)
+
+        self._currentImage: str = ""
 
         # [3]: Building Function when instantiated
         if slot is not None:
@@ -76,7 +79,8 @@ class InterfaceNode(QLabel):
     # ----------------------------------------------------------------------------------------------------------
     # [0]: Building Function
     def _initializeImage(self) -> None:
-        self.setPixmap(QPixmap(self._imageInterface[0]))
+        self._currentImage = self._imageInterface[0]
+        self.setPixmap(QPixmap(self._currentImage))
         self._resetImageSize()
 
     def _resetImageSize(self) -> None:
@@ -99,26 +103,24 @@ class InterfaceNode(QLabel):
         self.setAcceptDrops(False)
         self.setFocus()
 
+        # ":hover {" + self.hovering_style + "} *{" + self.static_style + "}"
         self._initializeImage()
-
         self.update()
         self.show()
 
     def updateGamingImage(self) -> None:
         # Attached Function used to update game play
         if self._interfaceStatus == 1:
-            if self.checkIfMine() is False:  # Representing Number
-                self.setPixmap(QPixmap(self._imageInterface[1]))
-            else:  # Displaying the bomb that has been clicked
-                self.reveal()
+            self._currentImage = self._imageInterface[1]  # Representing Number
         else:
             if self._interfaceStatus == 0:
-                self.setPixmap(QPixmap(self._imageInterface[0]))
+                self._currentImage = self._imageInterface[0]
             elif self._interfaceStatus == CONFIG["Flag Notation"]:
-                self.setPixmap(QPixmap(self._flagInterface[0]))
+                self._currentImage = self._flagInterface[0]
             elif self._interfaceStatus == CONFIG["Question Notation"]:
-                self.setPixmap(QPixmap(self._questionInterface[0]))
+                self._currentImage = self._questionInterface
 
+        self.setPixmap(QPixmap(self._currentImage))
         self.update()
         self.show()
 
@@ -127,21 +129,18 @@ class InterfaceNode(QLabel):
         reveal_status: bool = False
         if self._interfaceStatus != CONFIG["Question Notation"]:
             if self.checkIfMine() is False:
-                if self._interfaceStatus == -1:  # If this is a flag that is NOT placed on the bomb
-                    self.setPixmap(QPixmap(self._flagInterface[0]))
-                else:  # Representing Number
-                    self.setPixmap(QPixmap(self._imageInterface[1]))
+                # If this is a flag that is NOT placed on the bomb
+                self._currentImage = self._flagInterface[0] if self._interfaceStatus == -1 else self._imageInterface[1]
             else:
                 if self._interfaceStatus == -1:  # If this is a flag that is placed on the bomb
-                    self.setPixmap(QPixmap(self._flagInterface[1]))
+                    self._currentImage = self._flagInterface[1]
                 elif self._interfaceStatus == 1:  # If user accidentally activated the bomb
-                    self.setPixmap(QPixmap(self._bombInterface[1]))
+                    self._currentImage = self._bombInterface[1]
                 else:
-                    self.setPixmap(QPixmap(self._bombInterface[0]))
+                    self._currentImage = self._bombInterface[0]
 
             reveal_status = True
-
-            self._resetImageSize()
+            self.setPixmap(QPixmap(self._currentImage))
             self.update()
             self.show()
 
@@ -158,6 +157,26 @@ class InterfaceNode(QLabel):
     def mouseReleaseEvent(self, e: QMouseEvent):
         msg = {Qt.LeftButton: "LeftMouse", Qt.RightButton: "RightMouse"}
         self.currentSignal.emit(self.y, self.x, msg[e.button()])
+
+    def eventFilter(self, a0: 'QObject', a1: 'QEvent') -> bool:
+        # a1.type() == QPushButton.enterEvent
+        if a1.type() == QEvent.HoverEnter or a1.type() == QEvent.MouseButtonPress:
+            self.enterEvent(a1.type())
+            return True
+
+        elif a1.type() == QEvent.HoverLeave:
+            self.leaveEvent(a1.type())
+            return True
+
+        return False
+
+    def enterEvent(self, a0: QEvent) -> None:
+        self.setPixmap(QPixmap(getBombNumberImage(key="NULL")))
+        self.update()
+
+    def leaveEvent(self, a0: QEvent) -> None:
+        self.setPixmap(QPixmap(self._currentImage))
+        self.update()
 
     # ----------------------------------------------------------------------------------------------------------
     # [x]: Getter & Check and Setter Function
@@ -201,7 +220,7 @@ class GamingMode(QWidget):
         self.background.setGeometry(0, 0, DIALOG_SIZE[0], DIALOG_SIZE[1])
         #
         pixmap = QPixmap(getDialogBackground(get_size=False))
-        pixmap.scaled(int(max(DIALOG_SIZE) * 1.5), int(max(DIALOG_SIZE) * 1.5), Qt.KeepAspectRatioByExpanding)
+        pixmap.scaled(*DIALOG_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.background.setScaledContents(True)
         self.background.setPixmap(pixmap)
         self.background.setStyleSheet("background-color: red; background: transparent")
@@ -221,7 +240,7 @@ class GamingMode(QWidget):
         self._setup()
 
         # [1.3]: Extra non-attribute
-        ComboBoxSize: Tuple[int, int] = (190, 60)
+        ComboBoxSize: Tuple[int, int] = (180, 60)
         InformationSize: Tuple[int, int] = (95, 60)
 
         # ----------------------------------------------------------------------------------------------------------
@@ -266,10 +285,10 @@ class GamingMode(QWidget):
 
         # ----------------------------------------------------------------------------------------------------------
         # [4]: Making a warning message & submission button
-        self.warning_message.setGeometry(75, 200, 150, 50)
+        self.warning_message.setGeometry(75, 200, 150, 45)
 
         self.button.setText("Submit")
-        self.button.setGeometry(75, 255, 150, 40)
+        self.button.setGeometry(75, 250, 150, 40)
         self.button.clicked.connect(self.submit)
 
     def _setup(self) -> None:
@@ -370,7 +389,7 @@ class GamingMode(QWidget):
         size: Tuple[int, int] = (int(self.matrix_comboBox.currentText()), int(self.matrix_comboBox.currentText()))
         name: str = self.name_lineEdit.text()
         if name == "":
-            name = "Player"
+            name = "Anonymous"
             self.name_lineEdit.setText(name)
 
         # [2]: Making a game template for data validation
@@ -401,3 +420,52 @@ class GamingMode(QWidget):
         size, difficulty, name = self._submit()
         self.currentSignal.emit(size[0], size[1], difficulty, name)
         return size, difficulty, name
+
+    def keyReleaseEvent(self, a0: QKeyEvent) -> None:
+        if a0.key() == Qt.Key_Return:
+            self.submit()
+
+
+class HoveringButton(QPushButton):
+    def __init__(self, *args, **kwargs):
+        super(HoveringButton, self).__init__(*args, **kwargs)
+        self._hoverImage: str = ""
+        self._defaultImage: str = ""
+        self._imageWidth: int = -1
+        self._imageHeight: int = -1
+
+        self.hide()
+
+    def setImage(self, width: int, height: int, hoverImage: str, defaultImage: str):
+        self._hoverImage: str = hoverImage
+        self._defaultImage: str = defaultImage
+        self._imageWidth: int = width
+        self._imageHeight: int = height
+
+        self.setStyleSheet("border-style: outset; background-repeat: no-repeat; background: translucent")
+        self.setIcon(QIcon(self._defaultImage))
+        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
+        self.update()
+
+    def eventFilter(self, a0: 'QObject', a1: 'QEvent') -> bool:
+        # a1.type() == QPushButton.enterEvent
+        if a1.type() == QEvent.HoverEnter or a1.type() == QEvent.MouseButtonPress:
+            self.enterEvent(a1.type())
+            return True
+
+        elif a1.type() == QEvent.HoverLeave:
+            self.leaveEvent(a1.type())
+            return True
+
+        return False
+
+    def enterEvent(self, a0: QEvent) -> None:
+        self.setIcon(QIcon(self._hoverImage))
+        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
+        self.update()
+
+    def leaveEvent(self, a0: QEvent) -> None:
+        self.setIcon(QIcon(self._defaultImage))
+        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
+        self.update()
+
