@@ -3,66 +3,16 @@ from typing import Dict, List, Tuple, Union, Optional
 
 DIRECTORY: str = os.path.dirname(os.path.abspath(__file__))
 WINDOW_SIZE: Tuple[int, int] = (1920, 1080)
-DIALOG_SIZE: Tuple[int, int] = (300, 300)
-CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by milliseconds)
-UPDATING_TIMING: int = 1000
-NODES_SIZE: Tuple[int, int] = (20, 20)
-
-# -----------------------------------------------------------------------------------------------------------
-# CORE.py
-# "CORE_CONFIGURATION": Dictionary about specific notation in core.py
-CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
-    {
-        "Bomb Notation": -20,
-        "Flag Notation": -1,
-        "Question Notation": -5,
-        "Default Size": 15,
-        "Maximum Stack": 24,
-    }
-
-__EASY: Tuple[float, float] = (0.125, 1.75)
-__MEDIUM: Tuple[float, float] = (0.15, 1.8)
-__HARD: Tuple[float, float] = (0.2, 1.8)
-__EXTREME: Tuple[float, float] = (0.225, 1.875)
-
-DIFFICULTY: Dict[str, Tuple] = \
-    {
-        "Easy": __EASY,
-        "Medium": __MEDIUM,
-        "Hard": __HARD,
-        "Extreme": __EXTREME,
-    }
-
-
-def difficulty_validation(key: str) -> Tuple[int, int]:
-    if key in DIFFICULTY.keys():
-        return DIFFICULTY[key]
-    raise ValueError("key ({}) is in-valid. Only accept key = {} only".format(key, list(DIFFICULTY.keys())))
-
-
-# "MOUSE_MESSAGE": Used to emit a signal when clicking mouse
-MOUSE_MESSAGE: Dict[Union[int, str], Union[int, str]] = \
-    {
-        "LeftMouse": "L",
-        "RightMouse": "R",
-    }
 
 
 # -----------------------------------------------------------------------------------------------------------
 # interface.py --> key = -1: Image Size
 # CORE.py Association (Corresponding to y and x in order, no exception for everything)
 # [1]: Number Image
-BOMB_NUMBER_DISPLAY: Dict[str, Tuple[int, int]] = \
-    {
-        "Initial": (3, 3),
-        "Separation": (int(NODES_SIZE[0] // 3.5), int(NODES_SIZE[1] // 3.5))
-    }
-
-
-def getBombNumberImage(key: Optional[int]) -> Union[Tuple[int, int], str]:
+def getBombNumberImage(key: Optional[Union[str, int]]) -> Union[Tuple[int, int], str]:
     # Function to get property of bomb images for display.
     # If key = None: originated nodes, If key = -1, return its size, else, return its associated images
-    if key is None:
+    if key is None or key in ["NULL"]:
         return DIRECTORY + "/resources/images/numbers/{}.png".format(key)
 
     if not isinstance(key, int) or key not in range(-1, 9):
@@ -88,17 +38,36 @@ def getBombImage(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
         return DIRECTORY + "/resources/images/bomb/{} Bomb.png".format(key)
     elif key == -1:
         return 65, 65
+    print("key ({}) is in-valid. Only accept key = [Initial, Excited, -1] only".format(key))
     raise ValueError("key ({}) is in-valid. Only accept key = [Initial, Excited, -1] only".format(key))
 
 
 # [4]: Question Mark
 def getQuestionImage(get_size: bool = False) -> Union[str, Tuple[int, int]]:
-    return (65, 65) if get_size is True else "/resources/images/question/Question.png"
+    return (65, 65) if get_size is True else DIRECTORY + "/resources/images/question/Question.png"
 
 
 # [5]: Gaming Background
 def getGamingBackground(get_size: bool = False) -> Union[str, Tuple[int, int]]:
-    return WINDOW_SIZE if get_size is True else "/resources/images/background/Background.png"
+    return WINDOW_SIZE if get_size is True else DIRECTORY + "/resources/images/background/Background.png"
+
+
+# [6]: Get Timer Button
+def getTimerImage(get_size: bool = False) -> Union[str, Tuple[int, int]]:
+    return (65, 65) if get_size is True else DIRECTORY + "/resources/images/timer/Timer.png"
+
+
+# [7]: Get Extra Button
+def getExtraButton(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
+    if key == -1:
+        return 267, 138
+
+    request_key: List[str] = ["Undo", "Undo-hover", "Submit", "Submit-hover", "Redo", "Redo-hover"]
+    if key in request_key:
+        return DIRECTORY + "/resources/images/extra/{}.png".format(key)
+
+    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+    raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
 # -----------------------------------------------------------------------------------------------------------
@@ -106,7 +75,7 @@ def getGamingBackground(get_size: bool = False) -> Union[str, Tuple[int, int]]:
 # [1]: Opening Interface
 def getOpenInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
     main_directory: str = DIRECTORY + "/resources/images/opening/"
-    request_key: List[str] = ["Background", "Opening", "Title", "Play"]
+    request_key: List[str] = ["Background", "Opening", "Title", "Play", "Play-hover"]
     if key in request_key:
         if get_size is False:
             return main_directory + "{}.png".format(key)
@@ -116,15 +85,16 @@ def getOpenInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, 
             return WINDOW_SIZE
         elif idx == 2:
             return 714, 130
-        elif idx == 3:
+        elif idx in (3, 4):
             return 267, 138
+    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
 # [2]: Ending Interface
 def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
     main_directory: str = DIRECTORY + "/resources/images/ending/"
-    request_key: Tuple[str, str, str, str, str] = ("Background", "Ending", "Win", "Lose", "Replay")
+    request_key: List[str] = ["Background", "Ending", "Win", "Lose", "Replay", "Replay-hover"]
     if key in request_key:
         if get_size is False:
             return main_directory + "{}.png".format(key)
@@ -134,20 +104,20 @@ def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, i
             return WINDOW_SIZE
         elif idx == (2, 3):
             return 918, 373
-        elif idx == 4:
+        elif idx in (4, 5):
             return 267, 138
+    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
 # [3]: Dialog Interface
 def getDialogBackground(get_size: bool = False) -> Union[str, Tuple[int, int]]:
     main_directory: str = DIRECTORY + "/resources/images/dialog/"
-    return (165, 165) if get_size is True else main_directory + "Dialog.png"
+    return (1080, 1080) if get_size is True else main_directory + "Dialog.png"
 
 
 def getIcon(get_size: bool = False) -> Union[str, Tuple[int, int]]:
-    main_directory: str = DIRECTORY + "/resources/images/icon/"
-    return (48, 48) if get_size is True else main_directory + "Icon.ico"
+    return (48, 48) if get_size is True else DIRECTORY + "/resources/images/icon/Icon.ico"
 
 
 # -----------------------------------------------------------------------------------------------------------
@@ -157,10 +127,70 @@ def getUndoRedoImage(key: str, get_size: bool = False) -> Union[str, Tuple[int, 
     request_key: Tuple[str, str] = ("Undo", "Redo")
     if key in request_key:
         return main_directory + "{}.png".format(key) if get_size is False else (267, 138)
-
+    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
+
 # -----------------------------------------------------------------------------------------------------------
+def getRelativePath(path: str) -> str:
+    if isinstance(path, str):
+        return path.replace(DIRECTORY, "")
+    print("Invalid Path ({})".format(path))
+    raise ValueError("Invalid Path ({})".format(path))
+
+
+DIALOG_SIZE: Tuple[int, int] = (300, 300)
+CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by milliseconds)
+UPDATING_TIMING: int = 1000
+NODES_SIZE: Tuple[int, int] = getBombNumberImage(key=-1)
+BOARD_LENGTH: int = 45
+
+BOMB_NUMBER_DISPLAY: Dict[str, List[int]] = \
+    {
+        "Initial": [3 + BOARD_LENGTH, 3],
+        "Separation": [int(NODES_SIZE[0] // 4), int(NODES_SIZE[1] // 4)]
+    }
+
+# "MOUSE_MESSAGE": Used to emit a signal when clicking mouse
+MOUSE_MESSAGE: Dict[Union[int, str], Union[int, str]] = \
+    {
+        "LeftMouse": "L",
+        "RightMouse": "R",
+    }
+# -----------------------------------------------------------------------------------------------------------
+# CORE.py
+# "CORE_CONFIGURATION": Dictionary about specific notation in core.py
+CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
+    {
+        "Bomb Notation": -20,
+        "Flag Notation": -1,
+        "Question Notation": -5,
+        "Default Size": 15,
+        "Maximum Stack": 48,
+        "Clean Time": 6,
+    }
+
+__EASY: Tuple[float, float] = (0.125, 1.75)
+__MEDIUM: Tuple[float, float] = (0.15, 1.8)
+__HARD: Tuple[float, float] = (0.2, 1.8)
+__EXTREME: Tuple[float, float] = (0.225, 1.875)
+
+DIFFICULTY: Dict[str, Tuple] = \
+    {
+        "Easy": __EASY,
+        "Medium": __MEDIUM,
+        "Hard": __HARD,
+        "Extreme": __EXTREME,
+    }
+
+
+def difficulty_validation(key: str) -> Tuple[int, int]:
+    if key in DIFFICULTY.keys():
+        return DIFFICULTY[key]
+    print("key ({}) is in-valid. Only accept key = {} only".format(key, list(DIFFICULTY.keys())))
+    raise ValueError("key ({}) is in-valid. Only accept key = {} only".format(key, list(DIFFICULTY.keys())))
+
+
 # [4]: Extra Function
 def estimateBombLevel():
     game_play: Dict[str, int] = {"Tiny": 8, "Small": 16, "Small-Med": 25,
@@ -173,8 +203,3 @@ def estimateBombLevel():
                   .format(game_key, difficulty_key, bomb, nodes, round(bomb / nodes * 100, 2), 9 * bomb >= nodes))
         print()
 
-
-def getRelativePath(path: str) -> str:
-    if isinstance(path, str):
-        return path.replace(DIRECTORY, "")
-    raise ValueError("Invalid Path ({})".format(path))
