@@ -2,3 +2,8 @@ Undo.png
 Redo.png
 Submit.png
 Size: Cùng Size, nhưng hãy nhỏ vừa đủ
+
+Undo-hover.png
+Redo-hover.png
+Submit-hover.png
+Size: (267, 138)

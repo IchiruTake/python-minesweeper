@@ -8,6 +8,7 @@ Lose.png --> Size: (918, 373)
 (Win.png và Lose.png phải cùng size)
 
 Replay.png --> Size: (267, 138)
+Replay-hover.png --> Size: (267, 138)
 =======
 Win.png --> Size: Any
 Lose.png --> Size: Any
