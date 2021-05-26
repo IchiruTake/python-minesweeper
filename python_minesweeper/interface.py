@@ -261,7 +261,7 @@ class GameWindow(QMainWindow):
         self.welcome_playButton.raise_()
         self.welcome_playButton.setIcon(QIcon(config.getOpenInterface(key="Play")))
         self.welcome_playButton.setIconSize(QSize(*config.getOpenInterface(key="Play", get_size=True)))
-        self.welcome_playButton.setGeometry(1300, 700, *config.getOpenInterface(key="Play", get_size=True))
+        self.welcome_playButton.setGeometry(1350, 700, *config.getOpenInterface(key="Play", get_size=True))
         self.welcome_playButton.clicked.connect(self._makeDialog)
 
     # ----------------------------------------------------------------------------------------------------------
