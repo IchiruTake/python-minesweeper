@@ -229,7 +229,7 @@ class GamingMode(QWidget):
         pixmap.scaled(*DIALOG_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.background.setScaledContents(True)
         self.background.setPixmap(pixmap)
-        self.background.setStyleSheet("background-color: red; background: transparent")
+        self.background.setStyleSheet("background-color: yellow; background: transparent")
 
         # [1.2]: Building Attribute
         self.difficulty_comboBox: QComboBox = QComboBox(self)
@@ -281,7 +281,7 @@ class GamingMode(QWidget):
         self.matrix_comboBox.setPlaceholderText("Choose Your Matrix Size: ")
 
         # [2.3]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
-        self.name_info.setText("Your Name: ")
+        self.name_info.setText("Player: ")
         self.name_info.setGeometry(10, 150, *InformationSize)
 
         self.name_lineEdit.setGeometry(115, 150, *ComboBoxSize)
@@ -291,7 +291,7 @@ class GamingMode(QWidget):
 
         # ----------------------------------------------------------------------------------------------------------
         # [4]: Making a warning message & submission button
-        self.warning_message.setGeometry(75, 200, 150, 45)
+        self.warning_message.setGeometry(65, 200, 190, 45)
 
         self.button.setText("Submit")
         self.button.setGeometry(75, 250, 150, 40)
@@ -315,14 +315,14 @@ class GamingMode(QWidget):
             self.difficulty_info.setScaledContents(True)
             self.difficulty_info.setFocus()
             self.difficulty_info.setFont(QFont("Times New Roman", 13))
-            self.difficulty_info.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
+            self.difficulty_info.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
 
             self.difficulty_comboBox.setEnabled(True)
             self.difficulty_comboBox.setMouseTracking(True)
             self.difficulty_comboBox.setVisible(True)
             self.difficulty_comboBox.setFocus()
             self.difficulty_comboBox.setFont(QFont("Times New Roman", 13))
-            self.difficulty_comboBox.setStyleSheet("color: red; font: bold; border-style: outset; "
+            self.difficulty_comboBox.setStyleSheet("color: yellow; font: bold; border-style: outset; "
                                                    "background: transparent")
             self.difficulty_comboBox.setDuplicatesEnabled(False)
 
@@ -335,14 +335,14 @@ class GamingMode(QWidget):
             self.matrix_info.setScaledContents(True)
             self.matrix_info.setFocus()
             self.matrix_info.setFont(QFont("Times New Roman", 13))
-            self.matrix_info.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
+            self.matrix_info.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
 
             self.matrix_comboBox.setEnabled(True)
             self.matrix_comboBox.setMouseTracking(True)
             self.matrix_comboBox.setVisible(True)
             self.matrix_comboBox.setFocus()
             self.matrix_comboBox.setFont(QFont("Times New Roman", 13))
-            self.matrix_comboBox.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
+            self.matrix_comboBox.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
             self.matrix_comboBox.setDuplicatesEnabled(False)
 
         # [2.3]: Initialize Name
@@ -354,14 +354,14 @@ class GamingMode(QWidget):
             self.name_info.setScaledContents(True)
             self.name_info.setFocus()
             self.name_info.setFont(QFont("Times New Roman", 12))
-            self.name_info.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
+            self.name_info.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
 
             self.name_lineEdit.setEnabled(True)
             self.name_lineEdit.setMouseTracking(True)
             self.name_lineEdit.setVisible(True)
             self.name_lineEdit.setFocus()
             self.name_lineEdit.setFont(QFont("Times New Roman", 12))
-            self.name_lineEdit.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
+            self.name_lineEdit.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
 
         # [3]: Making a warning message & submission button
         if True:
@@ -372,7 +372,7 @@ class GamingMode(QWidget):
             self.warning_message.setScaledContents(True)
             self.warning_message.setFocus()
             self.warning_message.setFont(QFont("Times New Roman", 15))
-            self.warning_message.setStyleSheet("color: red; font: bold; background-color: black; border-style: outset;"
+            self.warning_message.setStyleSheet("color: yellow; font: bold; background-color: black; border-style: outset;"
                                                " background: transparent")
             self.warning_message.setAlignment(Qt.AlignCenter)
 
@@ -381,7 +381,7 @@ class GamingMode(QWidget):
             self.button.setVisible(True)
             self.button.setFocus()
             self.button.setFont(QFont("Times New Roman", 16))
-            self.button.setStyleSheet("color: red; font: bold; background-color: black; border-style: outset; "
+            self.button.setStyleSheet("color: yellow; font: bold; background-color: black; border-style: outset; "
                                       "background: transparent")
 
         return None
@@ -395,7 +395,7 @@ class GamingMode(QWidget):
         size: Tuple[int, int] = (int(self.matrix_comboBox.currentText()), int(self.matrix_comboBox.currentText()))
         name: str = self.name_lineEdit.text()
         if name == "":
-            name = "Anonymous"
+            name = "MrNobodyVipPro"
             self.name_lineEdit.setText(name)
 
         # [2]: Making a game template for data validation
