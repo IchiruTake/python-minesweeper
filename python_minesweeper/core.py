@@ -1,7 +1,6 @@
 import numpy as np
 from typing import Tuple, Union, List, Optional
 from sys import maxsize
-from copy import deepcopy
 from logging import warning
 from preprocessing import measure_execution_time
 from config import CORE_CONFIGURATION as CONFIG, MOUSE_MESSAGE, DIFFICULTY, difficulty_validation
@@ -26,14 +25,14 @@ class minesweeper:
 
             if isinstance(size, Tuple):
                 if len(size) != 2:
-                    raise TypeError("False Initialization: The size should be a tuple with two positive value")
+                    raise TypeError("False Initialization: The size should be a tuple with two positive values")
                 for i in size:
                     if i <= 0:
-                        raise TypeError("False Initialization: The size should be a tuple with two positive value")
+                        raise TypeError("False Initialization: The size should be a tuple with two positive values")
 
             else:
                 if size <= 0:
-                    raise TypeError("False Initialization: The size should be a tuple with positive integer")
+                    raise TypeError("False Initialization: The size should be a tuple with positive integers")
                 size: Tuple[int, int] = (size, size)
 
             if not isinstance(verbose, bool):
@@ -68,9 +67,13 @@ class minesweeper:
         self._bombNumber: int = int(DIFFICULTY[difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
                                     DIFFICULTY[difficulty][1])
         self._remainingFlags: int = self._bombNumber
+        self._accomplishedNode: int = 0
 
         # [2]: Set Configuration
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
+        self.adjacencyMatrix: np.ndarray = np.zeros(shape=(self.size[0] * self.size[1], self.size[0] * self.size[1]),
+                                                    dtype=np.uint8)
+        self.adjacencyMatrixStatus: bool = False
         self.BombNotation: int = CONFIG["Bomb Notation"]
         self.FlagNotation: int = CONFIG["Flag Notation"]
         self.QuestionNotation: int = CONFIG["Question Notation"]
@@ -86,7 +89,8 @@ class minesweeper:
         self.PlayingStatus: bool = True
 
         # [6]: Running Function
-        self._build()
+        self.build()
+        self.buildAdjacencyMatrix()
 
     # ----------------------------------------------------------------------------------------------------------------
     # [0]: Core Functions for Task Handling
@@ -154,9 +158,9 @@ class minesweeper:
         if self._checkInput(y=y, x=x) is True:
             self._setInterfaceNode(y=y, x=x, value=1)
             return True
-        else:
-            warning("No update has been found")
-            return False
+
+        warning("No update has been found")
+        return False
 
     def _setInterfaceNode(self, y: int, x: int, value: int) -> None:
         self.getInterfaceMatrix()[y, x] = value
@@ -232,7 +236,34 @@ class minesweeper:
             bomb += 1  # Update bomb counter
         pass
 
-    def _build(self):
+    def buildAdjacencyMatrix(self) -> None:
+        if self.adjacencyMatrixStatus is False:
+            self.adjacencyMatrixStatus = True
+
+        if self.adjacencyMatrixStatus is True:
+            for y, sub_matrix in enumerate(self.__coreMatrix):
+                for x, node in enumerate(sub_matrix):
+                    graph_index = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x)
+
+                    if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis():
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x)
+                        self.adjacencyMatrix[graph_index, new] = 1
+
+                    if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis():
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x)
+                        self.adjacencyMatrix[graph_index, new] = 1
+
+                    if 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x - 1)
+                        self.adjacencyMatrix[graph_index, new] = 1
+
+                    if 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x + 1)
+                        self.adjacencyMatrix[graph_index, new] = 1
+
+        return None
+
+    def build(self) -> None:
         self._buildBombPositions()
 
     # ----------------------------------------------------------------------------------------------------------------
@@ -240,6 +271,7 @@ class minesweeper:
     def _setInterfaceMatrix(self, new_matrix: np.ndarray) -> None:
         del self.interface_matrix
         self.interface_matrix = new_matrix
+        self.calculateAccomplishedNode()
 
     def _reset_undoStack(self) -> None:
         del self.__undoStack
@@ -268,6 +300,7 @@ class minesweeper:
                 else:
                     self.__redoStack = self.__redoStack[CONFIG["Clean Time"]:].copy()
                     gc.collect()
+        pass
 
     def clickRedo(self) -> None:
         if not self.__redoStack:
@@ -288,6 +321,7 @@ class minesweeper:
                 else:
                     self.__undoStack = self.__undoStack[CONFIG["Clean Time"]:].copy()
                     gc.collect()
+        pass
 
     def resetStack(self):
         self._reset_undoStack()
@@ -295,7 +329,6 @@ class minesweeper:
         gc.collect()
 
     def _savePreviousState(self) -> None:
-        warning(" Save previous state")
         if len(self.__undoStack) > self._maxStackSizeForUndoRedo:
             warning("The core: UNDO Stack has held too many object. Automatically delete some entity")
             if CONFIG["Clean Time"] == 1:
@@ -304,8 +337,6 @@ class minesweeper:
                 self.__undoStack = self.__undoStack[CONFIG["Clean Time"]:].copy()
                 gc.collect()
         self.__undoStack.append(self.getInterfaceMatrix().copy())
-        print("Redo: ", self.__redoStack)
-        print("Undo: ", self.__undoStack)
 
     # ----------------------------------------------------------------------------------------------------------------
     # [3]: User Interface Function
@@ -361,7 +392,7 @@ class minesweeper:
             raise ValueError("Re-check the source code for data validation. "
                              "Clicked mouse has emit unknown message ({})".format(message))
 
-        if self.PlayingStatus is True:
+        if self.checkIfPlayable() is True:
             # [1]: Save the previous state
             self._savePreviousState()
 
@@ -374,40 +405,48 @@ class minesweeper:
                 if self._checkInterfaceNode(y=y, x=x, value=0) is True:
                     if self._checkCoreNode(y=y, x=x, value=0):
                         self._graphExpansion(y_start=y, x_start=x)
-
+                        self.calculateAccomplishedNode()
                     else:
                         self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
-                        if self.checkBomb(y=y, x=x) is True:
+                        if self.checkIfBomb(y=y, x=x) is True:
                             self.PlayingStatus = False
                             self.VictoryStatus = False
+                        self._accomplishedNode += 1
 
             # [2.2]: Click by left-mouse
             elif MOUSE_MESSAGE[message] == "R":
                 # If that interface node has not been opened. Assign as Flag
-                if self.getInterfaceNode(y=y, x=x) == 0:
+                if self._checkInterfaceNode(y=y, x=x, value=0) is True:
                     self._setInterfaceNode(y=y, x=x, value=self.FlagNotation)
                     self._remainingFlags -= 1
+                    self._accomplishedNode += 1
 
                 # If that interface node was assigned as Flag. Assign as Question
-                elif self.getInterfaceNode(y=y, x=x) == self.FlagNotation:
+                elif self._checkInterfaceNode(y=y, x=x, value=self.FlagNotation) is True:
                     self._setInterfaceNode(y=y, x=x, value=self.QuestionNotation)
                     self._remainingFlags += 1
+                    self._accomplishedNode -= 1
 
                 # If that interface node was assigned as Question. Unassigned it
-                elif self.getInterfaceNode(y=y, x=x) == self.QuestionNotation:
+                elif self._checkInterfaceNode(y=y, x=x, value=self.QuestionNotation):
                     self._setInterfaceNode(y=y, x=x, value=0)
+
+            if self.getUnaccomplishedNodes() == 0 and self.checkIfVictory() is False:
+                self.PlayingStatus = False
+                self.VictoryStatus = True
+
         else:
             warning(" You cannot play at current time.")
         pass
 
     # ----------------------------------------------------------------------------------------------------------------
-    # [3]: User Interface Function
-    def checkClickable(self, y: int, x: int) -> bool:
+    # [4]: Checking Function
+    def checkIfClickable(self, y: int, x: int) -> bool:
         if self._checkInput(y=y, x=x) is True and self.getInterfaceNode(y=y, x=x) != 1:
             return True
         return False
 
-    def checkBomb(self, y: int, x: int) -> bool:
+    def checkIfBomb(self, y: int, x: int) -> bool:
         if self._checkInput(y=y, x=x) is True and self._checkCoreNode(y=y, x=x, value=self.BombNotation) is True:
             return True
         return False
@@ -428,12 +467,112 @@ class minesweeper:
             if not bomb_position:
                 self.PlayingStatus = False
                 self.VictoryStatus = True
-        pass
+        elif self.getUnaccomplishedNodes() == 0 and self.PlayingStatus is True and self.VictoryStatus is False:
+            self.PlayingStatus = False
+            self.VictoryStatus = True
+
+    def checkIfVictory(self) -> bool:
+        return self.VictoryStatus
+
+    def checkIfPlayable(self) -> bool:
+        return self.PlayingStatus
+
+    def calculateAccomplishedNode(self):
+        x: np.ndarray = self.getInterfaceMatrix().view()
+        self._accomplishedNode: int = x[(x == 1) | (x == -1)].size
+
+    def resetGame(self, size: Union[int, Tuple[int, int]] = 16, difficulty: str = "Medium"):
+        # [1]: Validate Hyper-parameters
+        if True:
+            if size == -1 or size is None:
+                pass
+            elif isinstance(size, (int, Tuple)):
+                if isinstance(size, int):
+                    size: Tuple[int, int] = (size, size)
+                for value in size[:2]:
+                    if not isinstance(value, int):
+                        raise ValueError(
+                            " False Initialization: The size should be a tuple with 2-positive integers or "
+                            "positive integer")
+
+                if self.size[0] != size[:2][0] or self.size[1] != size[:2][1]:
+                    self.adjacencyMatrixStatus = False
+                    self.size = size[:2]
+
+            if difficulty is not None:
+                difficulty_validation(key=difficulty)
+                self._bombNumber: int = int(DIFFICULTY[difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
+                                            DIFFICULTY[difficulty][1])
+            pass
+
+        # [2]: Reset everything having
+        # [2.1]: Setup Core for Data Implementation
+        self.__coreMatrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
+        self.__bombPosition: List[Tuple[int, int]] = []
+        self._remainingFlags: int = self._bombNumber
+
+        # [2]: Set Configuration
+        self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
+        self._accomplishedNode: int = 0
+
+        if self.adjacencyMatrixStatus is False:
+            self.adjacencyMatrix: np.ndarray = \
+                np.zeros(shape=(self.getNumberOfNodes(), self.getNumberOfNodes()), dtype=np.uint8)
+
+        # [3]: Set Undo & Redo Features
+        self.__undoStack: List[np.ndarray] = []
+        self.__redoStack: List[np.ndarray] = []
+
+        # [4]: Gaming Status
+        self.VictoryStatus: bool = False
+        self.PlayingStatus: bool = True
+
+        # [5]: Running Function
+        self.build()
+        if self.adjacencyMatrixStatus is False:
+            self.buildAdjacencyMatrix()
+
+        return None
 
     # [x]: Getter and Display Function --------------------------------------------------------
     # [x.1] Getter Function
+    def _getNeighbors4Axis(self, y: int, x: int) -> List[Tuple[int, int]]:
+        position: List[Tuple[int, int]] = []
+        if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y - 1, x))
+        if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y + 1, x))
+        if 0 <= y < self.getNumberOfNodesInVerticalAxis() and 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y, x - 1))
+        if 0 <= y < self.getNumberOfNodesInVerticalAxis() and 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y, x + 1))
+        return position
+
+    def _getNeighbors8Axis(self, y: int, x: int) -> List[Tuple[int, int]]:
+        position: List[Tuple[int, int]] = []
+        if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y - 1, x - 1))
+        if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y - 1, x + 1))
+        if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y + 1, x - 1))
+        if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
+            position.append((y + 1, x + 1))
+        position += self._getNeighbors4Axis(y=y, x=x)
+        return position
+
     def getCoreMatrix(self) -> np.ndarray:
         return self.__coreMatrix
+    
+    def getHashingCoreMatrix(self, minimum_mode: bool = False):
+        matrix = self.getCoreMatrix().copy()
+        for y, x in self.getBombPositions():
+            respectivePosition = self._getNeighbors8Axis(y=y, x=x)
+            node_value: List[int] = [self.getCoreNode(y=y_, x=x_) for y_, x_ in respectivePosition]
+            matrix[y, x] = min(node_value) if minimum_mode is True else max(node_value)
+            respectivePosition.clear()
+            node_value.clear()
+        return matrix
 
     def getCoreNode(self, y: int, x: int) -> np.integer:
         return self.getCoreMatrix()[y, x]
@@ -474,16 +613,16 @@ class minesweeper:
     def getRemainingFlags(self) -> int:
         return self._remainingFlags
 
-    def checkIfVictory(self) -> bool:
-        return self.VictoryStatus
+    def getAccomplishedNodes(self) -> int:
+        return self._accomplishedNode
 
-    def checkIfPlayable(self) -> bool:
-        return self.PlayingStatus
+    def getUnaccomplishedNodes(self) -> int:
+        return self.getNumberOfNodes() - self._accomplishedNode
 
     # [x.2] Display Function
     def displayCoreMatrix(self) -> None:
         print("=" * 100)
-        print("Hashing Core Matrix: ")
+        print("Core Matrix: ")
         print(self.getCoreMatrix())
         print("Matrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
@@ -504,9 +643,31 @@ class minesweeper:
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
         print("=" * 100, "\n")
 
+    def displayHashedCoreMatrix(self, minimum_mode: bool = False) -> None:
+        print("=" * 100)
+        print("Hashing Core Matrix: ")
+        print(self.getHashingCoreMatrix(minimum_mode=minimum_mode))
+        print("Matrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
+              .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
+        print("=" * 100, "\n")
+
+    def displayBetterHashedCoreMatrix(self, minimum_mode: bool = False) -> None:
+        print("=" * 100)
+        print("Better Hashing Core Matrix: ")
+        matrix: np.ndarray = self.getHashingCoreMatrix(minimum_mode=minimum_mode)
+        matrix[matrix == 0] = "_"
+        for value in range(1, 9):
+            matrix[matrix == value] = str(value)
+
+        for row in range(0, matrix.shape[0]):
+            print(matrix[row].tolist())
+        print("\nMatrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
+              .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
+        print("=" * 100, "\n")
+
     def displayInterfaceMatrix(self) -> None:
         print("=" * 100)
-        print("Hashing Interface Matrix: ")
+        print("Interface Matrix: ")
         matrix = self.getInterfaceMatrix()
         for row in range(0, matrix.shape[0]):
             print(matrix[row].tolist())

@@ -1,5 +1,6 @@
-from typing import Tuple, List, Union, Optional, Callable
+from typing import Tuple, List, Union, Optional, Callable, Dict
 
+import pandas as pd
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -70,6 +71,8 @@ class InterfaceNode(QLabel):
         self._questionInterface: str = getQuestionImage(get_size=False)
 
         self._currentImage: str = ""
+        self._message: Dict[int, str] = {Qt.LeftButton: "LeftMouse", Qt.RightButton: "RightMouse",
+                                         Qt.MidButton: "LeftMouse", Qt.MiddleButton: "LeftMouse"}
 
         # [3]: Building Function when instantiated
         if slot is not None:
@@ -106,7 +109,7 @@ class InterfaceNode(QLabel):
         # ":hover {" + self.hovering_style + "} *{" + self.static_style + "}"
         self._initializeImage()
         self.update()
-        self.show()
+        self.hide()
 
     def updateGamingImage(self) -> None:
         # Attached Function used to update game play
@@ -155,12 +158,13 @@ class InterfaceNode(QLabel):
     # ----------------------------------------------------------------------------------------------------------
     # [1]: Interface Function
     def mouseReleaseEvent(self, e: QMouseEvent):
-        msg = {Qt.LeftButton: "LeftMouse", Qt.RightButton: "RightMouse"}
-        self.currentSignal.emit(self.y, self.x, msg[e.button()])
+        if e.button() not in self._message.keys():
+            self.currentSignal.emit(self.y, self.x, self._message[Qt.LeftButton])
+        self.currentSignal.emit(self.y, self.x, self._message[e.button()])
 
     def eventFilter(self, a0: 'QObject', a1: 'QEvent') -> bool:
         # a1.type() == QPushButton.enterEvent
-        if a1.type() == QEvent.HoverEnter or a1.type() == QEvent.MouseButtonPress:
+        if a1.type() == QEvent.HoverEnter:
             self.enterEvent(a1.type())
             return True
 
@@ -171,8 +175,9 @@ class InterfaceNode(QLabel):
         return False
 
     def enterEvent(self, a0: QEvent) -> None:
-        self.setPixmap(QPixmap(getBombNumberImage(key="NULL")))
-        self.update()
+        if self._interfaceStatus != 1:
+            self.setPixmap(QPixmap(getBombNumberImage(key="NULL")))
+            self.update()
 
     def leaveEvent(self, a0: QEvent) -> None:
         self.setPixmap(QPixmap(self._currentImage))
@@ -215,6 +220,7 @@ class GamingMode(QWidget):
         # [1.1]: Build a dialog to enable user-computer communication
         self.setFixedSize(*DIALOG_SIZE)
         self.setWindowTitle("Gaming Mode")
+        self.update()
 
         self.background: QLabel = QLabel(self)
         self.background.setGeometry(0, 0, DIALOG_SIZE[0], DIALOG_SIZE[1])
@@ -237,8 +243,8 @@ class GamingMode(QWidget):
 
         self.warning_message: QLabel = QLabel(self)
         self.button: QPushButton = QPushButton(self)
-        self._setup()
 
+        self._setup()
         # [1.3]: Extra non-attribute
         ComboBoxSize: Tuple[int, int] = (180, 60)
         InformationSize: Tuple[int, int] = (95, 60)
@@ -275,8 +281,8 @@ class GamingMode(QWidget):
         self.matrix_comboBox.setPlaceholderText("Choose Your Matrix Size: ")
 
         # [2.3]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
-        self.name_info.setText("Player: ")
-        self.name_info.setGeometry(9, 150, *InformationSize)
+        self.name_info.setText("Your Name: ")
+        self.name_info.setGeometry(10, 150, *InformationSize)
 
         self.name_lineEdit.setGeometry(115, 150, *ComboBoxSize)
         self.name_lineEdit.setPlaceholderText("Enter your name: ")
@@ -285,7 +291,7 @@ class GamingMode(QWidget):
 
         # ----------------------------------------------------------------------------------------------------------
         # [4]: Making a warning message & submission button
-        self.warning_message.setGeometry(65, 200, 185, 55)
+        self.warning_message.setGeometry(75, 200, 150, 45)
 
         self.button.setText("Submit")
         self.button.setGeometry(75, 250, 150, 40)
@@ -309,14 +315,15 @@ class GamingMode(QWidget):
             self.difficulty_info.setScaledContents(True)
             self.difficulty_info.setFocus()
             self.difficulty_info.setFont(QFont("Times New Roman", 13))
-            self.difficulty_info.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
+            self.difficulty_info.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
 
             self.difficulty_comboBox.setEnabled(True)
             self.difficulty_comboBox.setMouseTracking(True)
             self.difficulty_comboBox.setVisible(True)
             self.difficulty_comboBox.setFocus()
             self.difficulty_comboBox.setFont(QFont("Times New Roman", 13))
-            self.difficulty_comboBox.setStyleSheet("color: yellow; font: bold; border-style: outset; " "background: transparent")
+            self.difficulty_comboBox.setStyleSheet("color: red; font: bold; border-style: outset; "
+                                                   "background: transparent")
             self.difficulty_comboBox.setDuplicatesEnabled(False)
 
         # [2.2]: Initialize Size
@@ -328,14 +335,14 @@ class GamingMode(QWidget):
             self.matrix_info.setScaledContents(True)
             self.matrix_info.setFocus()
             self.matrix_info.setFont(QFont("Times New Roman", 13))
-            self.matrix_info.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
+            self.matrix_info.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
 
             self.matrix_comboBox.setEnabled(True)
             self.matrix_comboBox.setMouseTracking(True)
             self.matrix_comboBox.setVisible(True)
             self.matrix_comboBox.setFocus()
             self.matrix_comboBox.setFont(QFont("Times New Roman", 13))
-            self.matrix_comboBox.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
+            self.matrix_comboBox.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
             self.matrix_comboBox.setDuplicatesEnabled(False)
 
         # [2.3]: Initialize Name
@@ -347,14 +354,14 @@ class GamingMode(QWidget):
             self.name_info.setScaledContents(True)
             self.name_info.setFocus()
             self.name_info.setFont(QFont("Times New Roman", 12))
-            self.name_info.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
+            self.name_info.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
 
             self.name_lineEdit.setEnabled(True)
             self.name_lineEdit.setMouseTracking(True)
             self.name_lineEdit.setVisible(True)
             self.name_lineEdit.setFocus()
             self.name_lineEdit.setFont(QFont("Times New Roman", 12))
-            self.name_lineEdit.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
+            self.name_lineEdit.setStyleSheet("color: red; font: bold; border-style: outset; background: transparent")
 
         # [3]: Making a warning message & submission button
         if True:
@@ -365,7 +372,7 @@ class GamingMode(QWidget):
             self.warning_message.setScaledContents(True)
             self.warning_message.setFocus()
             self.warning_message.setFont(QFont("Times New Roman", 15))
-            self.warning_message.setStyleSheet("color: yellow; font: bold; background-color: black; border-style: outset;"
+            self.warning_message.setStyleSheet("color: red; font: bold; background-color: black; border-style: outset;"
                                                " background: transparent")
             self.warning_message.setAlignment(Qt.AlignCenter)
 
@@ -374,7 +381,7 @@ class GamingMode(QWidget):
             self.button.setVisible(True)
             self.button.setFocus()
             self.button.setFont(QFont("Times New Roman", 16))
-            self.button.setStyleSheet("color: yellow; font: bold; background-color: black; border-style: outset; "
+            self.button.setStyleSheet("color: red; font: bold; background-color: black; border-style: outset; "
                                       "background: transparent")
 
         return None
@@ -412,12 +419,14 @@ class GamingMode(QWidget):
 
         print("(Size: {} --- Difficulty: {}) --> Bomb Number(s): {} / {} (Ratio: {} % - Overwhelming: {})"
               .format(size, difficulty, bomb, nodes, round(bomb / nodes * 100, 2), 9 * bomb >= nodes))
-
+        del template_core
         return size, difficulty, name
 
     def submit(self) -> Optional[Tuple[Tuple[int, int], str, str]]:
         size, difficulty, name = self._submit()
         self.currentSignal.emit(size[0], size[1], difficulty, name)
+        self.update()
+        self.show()
         return size, difficulty, name
 
     def keyReleaseEvent(self, a0: QKeyEvent) -> None:
@@ -468,3 +477,46 @@ class HoveringButton(QPushButton):
         self.setIconSize(QSize(self._imageWidth, self._imageHeight))
         self.update()
 
+
+class TableModel(QAbstractTableModel):
+    def __init__(self, data, *args, **kwargs):
+        super(TableModel, self).__init__(*args, **kwargs)
+        self._data = data
+
+    def toDataFrame(self):
+        return self._df.copy()
+
+    def setDataFrame(self, dataframe):
+        self.beginResetModel()
+        self._data = dataframe.copy()
+        self.endResetModel()
+
+    def dataFrame(self):
+        return self._data
+
+    dataFrame = pyqtProperty(pd.DataFrame, fget=dataFrame, fset=setDataFrame)
+
+    @pyqtSlot(int, Qt.Orientation, result=str)
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self._data.columns[section]
+        return None
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return len(self._data.index)
+
+    def columnCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return self._data.columns.size
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.DisplayRole:
+                return str(self._data.iloc[index.row(), index.column()])
+        return None
+
+    def roleNames(self):
+        return {Qt.DisplayRole: b'display', TableModel.DtypeRole: b'dtype', TableModel.ValueRole: b'value'}

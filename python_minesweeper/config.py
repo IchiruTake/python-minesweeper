@@ -74,39 +74,42 @@ def getExtraButton(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
 # Interface Association
 # [1]: Opening Interface
 def getOpenInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
-    main_directory: str = DIRECTORY + "/resources/images/opening/"
     request_key: List[str] = ["Background", "Opening", "Title", "Play", "Play-hover"]
-    if key in request_key:
-        if get_size is False:
-            return main_directory + "{}.png".format(key)
-
+    try:
         idx: int = request_key.index(key)
+        if get_size is False:
+            return DIRECTORY + "/resources/images/opening/{}.png".format(key)
+
         if idx in (0, 1):
             return WINDOW_SIZE
         elif idx == 2:
             return 714, 130
         elif idx in (3, 4):
             return 267, 138
-    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+        print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+    except (ValueError, IndexError):
+        pass
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
 # [2]: Ending Interface
 def getEndInterface(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
-    main_directory: str = DIRECTORY + "/resources/images/ending/"
     request_key: List[str] = ["Background", "Ending", "Win", "Lose", "Replay", "Replay-hover"]
-    if key in request_key:
-        if get_size is False:
-            return main_directory + "{}.png".format(key)
-
+    try:
         idx: int = request_key.index(key)
+        if get_size is False:
+            return DIRECTORY + "/resources/images/ending/{}.png".format(key)
+
         if idx in (0, 1):
             return WINDOW_SIZE
-        elif idx == (2, 3):
+        elif idx in (2, 3):
             return 918, 373
         elif idx in (4, 5):
             return 267, 138
-    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+        print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+    except (ValueError, IndexError):
+        pass
+
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
@@ -122,16 +125,6 @@ def getIcon(get_size: bool = False) -> Union[str, Tuple[int, int]]:
 
 # -----------------------------------------------------------------------------------------------------------
 # [3]: Supplementary
-def getUndoRedoImage(key: str, get_size: bool = False) -> Union[str, Tuple[int, int]]:
-    main_directory: str = DIRECTORY + "/resources/images/undo_redo/"
-    request_key: Tuple[str, str] = ("Undo", "Redo")
-    if key in request_key:
-        return main_directory + "{}.png".format(key) if get_size is False else (267, 138)
-    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
-    raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
-
-
-# -----------------------------------------------------------------------------------------------------------
 def getRelativePath(path: str) -> str:
     if isinstance(path, str):
         return path.replace(DIRECTORY, "")
@@ -142,7 +135,10 @@ def getRelativePath(path: str) -> str:
 DIALOG_SIZE: Tuple[int, int] = (300, 300)
 CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by milliseconds)
 UPDATING_TIMING: int = 1000
+VIEWING_TIME_FOR_TRANSFER: int = 2500
 NODES_SIZE: Tuple[int, int] = getBombNumberImage(key=-1)
+TABLE_VIEW: Tuple[int, int] = (475, 400)
+TABLE_MAX_DISPLAY: int = 20
 BOARD_LENGTH: int = 45
 
 BOMB_NUMBER_DISPLAY: Dict[str, List[int]] = \
@@ -171,7 +167,7 @@ CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
     }
 
 __EASY: Tuple[float, float] = (0.125, 1.75)
-__MEDIUM: Tuple[float, float] = (0.15, 1.8)
+__MEDIUM: Tuple[float, float] = (0.15, 1.775)
 __HARD: Tuple[float, float] = (0.2, 1.8)
 __EXTREME: Tuple[float, float] = (0.225, 1.875)
 
@@ -192,7 +188,7 @@ def difficulty_validation(key: str) -> Tuple[int, int]:
 
 
 # [4]: Extra Function
-def estimateBombLevel():
+def estimateBombLevel() -> None:
     game_play: Dict[str, int] = {"Tiny": 8, "Small": 16, "Small-Med": 25,
                                  "Medium": 40, "Large": 75, "Extreme": 99}
     for game_key, game_value in game_play.items():
@@ -202,4 +198,4 @@ def estimateBombLevel():
             print("(Size: {} --- Difficulty: {}) --> Bomb Number(s): {} / {} (Ratio: {} % - Overwhelming: {})"
                   .format(game_key, difficulty_key, bomb, nodes, round(bomb / nodes * 100, 2), 9 * bomb >= nodes))
         print()
-
+    return None
