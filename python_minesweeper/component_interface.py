@@ -160,7 +160,8 @@ class InterfaceNode(QLabel):
     def mouseReleaseEvent(self, e: QMouseEvent):
         if e.button() not in self._message.keys():
             self.currentSignal.emit(self.y, self.x, self._message[Qt.LeftButton])
-        self.currentSignal.emit(self.y, self.x, self._message[e.button()])
+        else:
+            self.currentSignal.emit(self.y, self.x, self._message[e.button()])
 
     def eventFilter(self, a0: 'QObject', a1: 'QEvent') -> bool:
         # a1.type() == QPushButton.enterEvent
