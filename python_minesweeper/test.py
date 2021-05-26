@@ -6,5 +6,5 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     demo = GameWindow()
     demo.update()
-    demo.show()
+    demo.showMaximized()()
     sys.exit(app.exec_())
