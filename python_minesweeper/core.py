@@ -64,15 +64,17 @@ class minesweeper:
         self.__coreMatrix: np.ndarray = np.zeros(shape=size, dtype=np.int8)
         self.size: Tuple[int, int] = size
         self.__bombPosition: List[Tuple[int, int]] = []
-        self._bombNumber: int = int(DIFFICULTY[difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
+        self._bombNumber: int = int(DIFFICULTY[difficulty][0] * (self.size[0] / 2 + self.size[1] / 2) **
                                     DIFFICULTY[difficulty][1])
         self._remainingFlags: int = self._bombNumber
         self._accomplishedNode: int = 0
 
         # [2]: Set Configuration
         self.interface_matrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
-        self.adjacencyMatrix: np.ndarray = np.zeros(shape=(self.size[0] * self.size[1], self.size[0] * self.size[1]),
-                                                    dtype=np.uint8)
+        self.adjacencyMatrixFour: np.ndarray = \
+            np.zeros(shape=(self.size[0] * self.size[1], self.size[0] * self.size[1]), dtype=np.uint8)
+        self.adjacencyMatrixEight: np.ndarray = \
+            np.zeros(shape=(self.size[0] * self.size[1], self.size[0] * self.size[1]), dtype=np.uint8)
         self.adjacencyMatrixStatus: bool = False
         self.BombNotation: int = CONFIG["Bomb Notation"]
         self.FlagNotation: int = CONFIG["Flag Notation"]
@@ -241,25 +243,46 @@ class minesweeper:
             self.adjacencyMatrixStatus = True
 
         if self.adjacencyMatrixStatus is True:
+            max_y, max_x = self.getNumberOfNodesInVerticalAxis(), self.getNumberOfNodesInHorizontalAxis()
             for y, sub_matrix in enumerate(self.__coreMatrix):
                 for x, node in enumerate(sub_matrix):
                     graph_index = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x)
 
-                    if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis():
+                    if 0 <= y - 1 < max_y:
                         new = self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x)
-                        self.adjacencyMatrix[graph_index, new] = 1
+                        self.adjacencyMatrixFour[graph_index, new] = 1
+                        self.adjacencyMatrixEight[graph_index, new] = 1
 
-                    if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis():
+                    if 0 <= y + 1 < max_y:
                         new = self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x)
-                        self.adjacencyMatrix[graph_index, new] = 1
+                        self.adjacencyMatrixFour[graph_index, new] = 1
+                        self.adjacencyMatrixEight[graph_index, new] = 1
 
-                    if 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
+                    if 0 <= x - 1 < max_x:
                         new = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x - 1)
-                        self.adjacencyMatrix[graph_index, new] = 1
+                        self.adjacencyMatrixFour[graph_index, new] = 1
+                        self.adjacencyMatrixEight[graph_index, new] = 1
 
-                    if 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
+                    if 0 <= x + 1 < max_x:
                         new = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x + 1)
-                        self.adjacencyMatrix[graph_index, new] = 1
+                        self.adjacencyMatrixFour[graph_index, new] = 1
+                        self.adjacencyMatrixEight[graph_index, new] = 1
+
+                    if 0 <= y - 1 < max_y and 0 <= x - 1 < max_x:
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x - 1)
+                        self.adjacencyMatrixEight[graph_index, new] = 1
+
+                    if 0 <= y - 1 < max_y and 0 <= x + 1 < max_x:
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x + 1)
+                        self.adjacencyMatrixEight[graph_index, new] = 1
+
+                    if 0 <= y + 1 < max_y and 0 <= x - 1 < max_x:
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x - 1)
+                        self.adjacencyMatrixEight[graph_index, new] = 1
+
+                    if 0 <= y + 1 < max_y and 0 <= x + 1 < max_x:
+                        new = self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x + 1)
+                        self.adjacencyMatrixEight[graph_index, new] = 1
 
         return None
 
@@ -516,7 +539,9 @@ class minesweeper:
         self._accomplishedNode: int = 0
 
         if self.adjacencyMatrixStatus is False:
-            self.adjacencyMatrix: np.ndarray = \
+            self.adjacencyMatrixFour: np.ndarray = \
+                np.zeros(shape=(self.getNumberOfNodes(), self.getNumberOfNodes()), dtype=np.uint8)
+            self.adjacencyMatrixEight: np.ndarray = \
                 np.zeros(shape=(self.getNumberOfNodes(), self.getNumberOfNodes()), dtype=np.uint8)
 
         # [3]: Set Undo & Redo Features
@@ -563,7 +588,7 @@ class minesweeper:
 
     def getCoreMatrix(self) -> np.ndarray:
         return self.__coreMatrix
-    
+
     def getHashingCoreMatrix(self, minimum_mode: bool = False):
         matrix = self.getCoreMatrix().copy()
         for y, x in self.getBombPositions():

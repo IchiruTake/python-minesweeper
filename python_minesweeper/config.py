@@ -137,7 +137,7 @@ CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by millisec
 UPDATING_TIMING: int = 1000
 VIEWING_TIME_FOR_TRANSFER: int = 2500
 NODES_SIZE: Tuple[int, int] = getBombNumberImage(key=-1)
-TABLE_VIEW: Tuple[int, int] = (475, 400)
+TABLE_VIEW: Tuple[int, int] = (500, 400)
 TABLE_MAX_DISPLAY: int = 20
 BOARD_LENGTH: int = 45
 
@@ -167,9 +167,9 @@ CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
     }
 
 __EASY: Tuple[float, float] = (0.125, 1.75)
-__MEDIUM: Tuple[float, float] = (0.15, 1.775)
+__MEDIUM: Tuple[float, float] = (0.15, 1.8)
 __HARD: Tuple[float, float] = (0.2, 1.8)
-__EXTREME: Tuple[float, float] = (0.225, 1.875)
+__EXTREME: Tuple[float, float] = (0.25, 1.875)
 
 DIFFICULTY: Dict[str, Tuple] = \
     {

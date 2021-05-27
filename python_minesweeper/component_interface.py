@@ -6,7 +6,102 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from config import CORE_CONFIGURATION as CONFIG, getBombNumberImage, getFlagImage, getBombImage, getQuestionImage, \
-    BOMB_NUMBER_DISPLAY as number_displayer, DIFFICULTY, DIALOG_SIZE, getDialogBackground
+    BOMB_NUMBER_DISPLAY as number_displayer, DIFFICULTY, DIALOG_SIZE, getDialogBackground, getExtraButton
+
+
+class HoveringButton(QPushButton):
+    def __init__(self, *args, **kwargs):
+        super(HoveringButton, self).__init__(*args, **kwargs)
+        self._hoverImage: str = ""
+        self._hoverImageIcon: Optional[QIcon] = None
+        self._defaultImage: str = ""
+        self._defaultImageIcon: Optional[QIcon] = None
+        self._imageWidth: int = -1
+        self._imageHeight: int = -1
+
+        self.hide()
+
+    def setImage(self, width: int, height: int, hoverImage: str, defaultImage: str):
+        self._hoverImage: str = hoverImage
+        self._defaultImage: str = defaultImage
+        self._imageWidth: int = width
+        self._imageHeight: int = height
+
+        self._hoverImageIcon = QPixmap(self._hoverImage).scaled(width, height, Qt.IgnoreAspectRatio,
+                                                                Qt.SmoothTransformation)
+        self._defaultImageIcon = QPixmap(self._defaultImage).scaled(width, height, Qt.IgnoreAspectRatio,
+                                                                    Qt.SmoothTransformation)
+
+        self.setStyleSheet("border-style: outset; background-repeat: no-repeat; background: translucent")
+        self.setIcon(QIcon(self._defaultImageIcon))
+        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
+        self.update()
+
+    def eventFilter(self, a0: 'QObject', a1: 'QEvent') -> bool:
+        # a1.type() == QPushButton.enterEvent
+        if a1.type() == QEvent.HoverEnter or a1.type() == QEvent.MouseButtonPress:
+            self.enterEvent(a1.type())
+            return True
+
+        elif a1.type() == QEvent.HoverLeave:
+            self.leaveEvent(a1.type())
+            return True
+
+        return False
+
+    def enterEvent(self, a0: QEvent) -> None:
+        self.setIcon(QIcon(self._hoverImageIcon))
+        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
+        self.update()
+
+    def leaveEvent(self, a0: QEvent) -> None:
+        self.setIcon(QIcon(self._defaultImageIcon))
+        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
+        self.update()
+
+
+class TableModel(QAbstractTableModel):
+    def __init__(self, data, *args, **kwargs):
+        super(TableModel, self).__init__(*args, **kwargs)
+        self._data = data
+
+    def toDataFrame(self):
+        return self._df.copy()
+
+    def setDataFrame(self, dataframe):
+        self.beginResetModel()
+        self._data = dataframe.copy()
+        self.endResetModel()
+
+    def dataFrame(self):
+        return self._data
+
+    dataFrame = pyqtProperty(pd.DataFrame, fget=dataFrame, fset=setDataFrame)
+
+    @pyqtSlot(int, Qt.Orientation, result=str)
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self._data.columns[section]
+        return None
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return len(self._data.index)
+
+    def columnCount(self, parent=QModelIndex()):
+        if parent.isValid():
+            return 0
+        return self._data.columns.size
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.DisplayRole:
+                return str(self._data.iloc[index.row(), index.column()])
+        return None
+
+    def roleNames(self):
+        return {Qt.DisplayRole: b'display', TableModel.DtypeRole: b'dtype', TableModel.ValueRole: b'value'}
 
 
 class InterfaceNode(QLabel):
@@ -230,7 +325,7 @@ class GamingMode(QWidget):
         pixmap.scaled(*DIALOG_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.background.setScaledContents(True)
         self.background.setPixmap(pixmap)
-        self.background.setStyleSheet("background-color: yellow; background: transparent")
+        self.background.setStyleSheet("background-color: red; background: transparent")
 
         # [1.2]: Building Attribute
         self.difficulty_comboBox: QComboBox = QComboBox(self)
@@ -243,7 +338,8 @@ class GamingMode(QWidget):
         self.name_info: QLabel = QLabel(self)
 
         self.warning_message: QLabel = QLabel(self)
-        self.button: QPushButton = QPushButton(self)
+        self.button: HoveringButton = HoveringButton(self)
+        self.isClicked: bool = False
 
         self._setup()
         # [1.3]: Extra non-attribute
@@ -282,7 +378,7 @@ class GamingMode(QWidget):
         self.matrix_comboBox.setPlaceholderText("Choose Your Matrix Size: ")
 
         # [2.3]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
-        self.name_info.setText("Player: ")
+        self.name_info.setText("Your Name: ")
         self.name_info.setGeometry(10, 150, *InformationSize)
 
         self.name_lineEdit.setGeometry(115, 150, *ComboBoxSize)
@@ -292,10 +388,11 @@ class GamingMode(QWidget):
 
         # ----------------------------------------------------------------------------------------------------------
         # [4]: Making a warning message & submission button
-        self.warning_message.setGeometry(65, 200, 190, 45)
+        self.warning_message.setGeometry(75, 200, 150, 45)
 
-        self.button.setText("Submit")
-        self.button.setGeometry(75, 250, 150, 40)
+        self.button.setImage(width=110, height=55, hoverImage=getExtraButton(key="Submit-hover"),
+                             defaultImage=getExtraButton(key="Submit"))
+        self.button.setGeometry((DIALOG_SIZE[0] - 110) // 2, 240, 110, 55)
         self.button.clicked.connect(self.submit)
 
     def _setup(self) -> None:
@@ -316,7 +413,8 @@ class GamingMode(QWidget):
             self.difficulty_info.setScaledContents(True)
             self.difficulty_info.setFocus()
             self.difficulty_info.setFont(QFont("Times New Roman", 13))
-            self.difficulty_info.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
+            self.difficulty_info.setStyleSheet("color: yellow; font: bold; border-style: outset; "
+                                               "background: transparent")
 
             self.difficulty_comboBox.setEnabled(True)
             self.difficulty_comboBox.setMouseTracking(True)
@@ -372,8 +470,7 @@ class GamingMode(QWidget):
             self.warning_message.setVisible(True)
             self.warning_message.setScaledContents(True)
             self.warning_message.setFocus()
-            self.warning_message.setFont(QFont("Times New Roman", 15))
-            self.warning_message.setStyleSheet("color: yellow; font: bold; background-color: black; border-style: outset;"
+            self.warning_message.setStyleSheet("color: red; font: bold; background-color: black; border-style: outset;"
                                                " background: transparent")
             self.warning_message.setAlignment(Qt.AlignCenter)
 
@@ -382,7 +479,7 @@ class GamingMode(QWidget):
             self.button.setVisible(True)
             self.button.setFocus()
             self.button.setFont(QFont("Times New Roman", 16))
-            self.button.setStyleSheet("color: yellow; font: bold; background-color: black; border-style: outset; "
+            self.button.setStyleSheet("color: red; font: bold; background-color: black; border-style: outset; "
                                       "background: transparent")
 
         return None
@@ -396,7 +493,7 @@ class GamingMode(QWidget):
         size: Tuple[int, int] = (int(self.matrix_comboBox.currentText()), int(self.matrix_comboBox.currentText()))
         name: str = self.name_lineEdit.text()
         if name == "":
-            name = "MrNobodyVipPro"
+            name = "Anonymous"
             self.name_lineEdit.setText(name)
 
         # [2]: Making a game template for data validation
@@ -409,10 +506,13 @@ class GamingMode(QWidget):
         text: str = ""
         if ratio >= 15:
             text = "Extreme Mode"
+            self.warning_message.setFont(QFont("Times New Roman", 13))
         elif ratio >= 12.5:
             text = "Hard Mode"
+            self.warning_message.setFont(QFont("Times New Roman", 15))
         elif ratio <= 5:
             text = "Children Mode"
+            self.warning_message.setFont(QFont("Times New Roman", 13))
 
         self.warning_message.setText(text)
         self.warning_message.update()
@@ -425,99 +525,16 @@ class GamingMode(QWidget):
 
     def submit(self) -> Optional[Tuple[Tuple[int, int], str, str]]:
         size, difficulty, name = self._submit()
-        self.currentSignal.emit(size[0], size[1], difficulty, name)
+        if self.isClicked is False:
+            self.isClicked = True
+            self.currentSignal.emit(size[0], size[1], difficulty, name)
         self.update()
         self.show()
         return size, difficulty, name
 
+    def resetActivation(self):
+        self.isClicked = False
+
     def keyReleaseEvent(self, a0: QKeyEvent) -> None:
         if a0.key() == Qt.Key_Return:
             self.submit()
-
-
-class HoveringButton(QPushButton):
-    def __init__(self, *args, **kwargs):
-        super(HoveringButton, self).__init__(*args, **kwargs)
-        self._hoverImage: str = ""
-        self._defaultImage: str = ""
-        self._imageWidth: int = -1
-        self._imageHeight: int = -1
-
-        self.hide()
-
-    def setImage(self, width: int, height: int, hoverImage: str, defaultImage: str):
-        self._hoverImage: str = hoverImage
-        self._defaultImage: str = defaultImage
-        self._imageWidth: int = width
-        self._imageHeight: int = height
-
-        self.setStyleSheet("border-style: outset; background-repeat: no-repeat; background: translucent")
-        self.setIcon(QIcon(self._defaultImage))
-        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
-        self.update()
-
-    def eventFilter(self, a0: 'QObject', a1: 'QEvent') -> bool:
-        # a1.type() == QPushButton.enterEvent
-        if a1.type() == QEvent.HoverEnter or a1.type() == QEvent.MouseButtonPress:
-            self.enterEvent(a1.type())
-            return True
-
-        elif a1.type() == QEvent.HoverLeave:
-            self.leaveEvent(a1.type())
-            return True
-
-        return False
-
-    def enterEvent(self, a0: QEvent) -> None:
-        self.setIcon(QIcon(self._hoverImage))
-        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
-        self.update()
-
-    def leaveEvent(self, a0: QEvent) -> None:
-        self.setIcon(QIcon(self._defaultImage))
-        self.setIconSize(QSize(self._imageWidth, self._imageHeight))
-        self.update()
-
-
-class TableModel(QAbstractTableModel):
-    def __init__(self, data, *args, **kwargs):
-        super(TableModel, self).__init__(*args, **kwargs)
-        self._data = data
-
-    def toDataFrame(self):
-        return self._df.copy()
-
-    def setDataFrame(self, dataframe):
-        self.beginResetModel()
-        self._data = dataframe.copy()
-        self.endResetModel()
-
-    def dataFrame(self):
-        return self._data
-
-    dataFrame = pyqtProperty(pd.DataFrame, fget=dataFrame, fset=setDataFrame)
-
-    @pyqtSlot(int, Qt.Orientation, result=str)
-    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self._data.columns[section]
-        return None
-
-    def rowCount(self, parent=QModelIndex()):
-        if parent.isValid():
-            return 0
-        return len(self._data.index)
-
-    def columnCount(self, parent=QModelIndex()):
-        if parent.isValid():
-            return 0
-        return self._data.columns.size
-
-    def data(self, index, role=Qt.DisplayRole):
-        if index.isValid():
-            if role == Qt.DisplayRole:
-                return str(self._data.iloc[index.row(), index.column()])
-        return None
-
-    def roleNames(self):
-        return {Qt.DisplayRole: b'display', TableModel.DtypeRole: b'dtype', TableModel.ValueRole: b'value'}
