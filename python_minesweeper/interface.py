@@ -112,8 +112,6 @@ class GameWindow(QMainWindow):
     # ----------------------------------------------------------------------------------------------------------
     # [1]: Setup Function
     def _setup(self):
-        ComboBoxSize: Tuple[int, int] = (180, 60)
-        InformationSize: Tuple[int, int] = (95, 60)
         # [1]: Initialize Window
         if True:
             self.setEnabled(True)
@@ -186,6 +184,9 @@ class GameWindow(QMainWindow):
             self.ending_displayRanking.setUpdatesEnabled(True)
             self.ending_displayRanking.setVisible(True)
             self.ending_displayRanking.setFocus()
+            self.ending_displayRanking.resizeColumnsToContents()
+            self.ending_displayRanking.resizeRowsToContents()
+            self.ending_displayRanking.scrollToTop()
             self.ending_displayRanking.hide()
 
             self.ending_replayButton.setMouseTracking(True)
@@ -287,6 +288,14 @@ class GameWindow(QMainWindow):
         if self.__gameCore.checkIfPlayable() is False:
             self._viewingTimeToEnding -= config.CLOCK_UPDATE_SPEED
             if self._viewingTimeToEnding <= 0:
+                self.__gameCore.checkGamingStatus()
+                finished_node: int = self.__gameCore.getAccomplishedNodes()
+                max_node: int = self.__gameCore.getNumberOfNodes()
+
+                print("Accomplished Nodes: {} -> Status: {}".format(finished_node, finished_node == max_node))
+                print("Playable: {} || Winning: {}".format(self.__gameCore.checkIfPlayable(),
+                                                           self.__gameCore.checkIfVictory()))
+
                 self._viewingTimeToEnding = config.VIEWING_TIME_FOR_TRANSFER
                 # Create a message box to win
                 text = "CONGRAT :) YOU HAVE WON THE GAME" \
@@ -318,6 +327,7 @@ class GameWindow(QMainWindow):
 
     def deactivateDialog(self):
         self._updateDialog()
+        self.dialog.resetActivation()
         self.dialog.hide()
 
     def _assignGame(self, width: int, height: int, difficulty: str, name: str) -> None:
@@ -605,21 +615,15 @@ class GameWindow(QMainWindow):
         z = list(config.getEndInterface(key="Replay", get_size=True))
         self.ending_replayButton.setImage(width=z[0], height=z[1], defaultImage=config.getEndInterface(key="Replay"),
                                           hoverImage=config.getEndInterface(key="Replay-hover"))
-        self.ending_replayButton.setGeometry((config.WINDOW_SIZE[0] - z[0]) // 2, config.WINDOW_SIZE[1] - z[1] - 100, *z)
+        self.ending_replayButton.setGeometry((config.WINDOW_SIZE[0] - z[0]) // 2, config.WINDOW_SIZE[1] - z[1] - 100,
+                                             *z)
         self.ending_replayButton.raise_()
         self.ending_replayButton.clicked.connect(self.replay)
 
         # [3]: Viewing Pandas Record
-        df = ReadFile(FilePath=config.DIRECTORY + "/resources/score/{}.csv".format(self._playingDifficulty),
-                      nrows=config.TABLE_MAX_DISPLAY, header=0)
         t = config.TABLE_VIEW
-        self.ending_displayRanking.setModel(TableModel(df))
         self.ending_displayRanking.setGeometry((config.WINDOW_SIZE[0] - t[0]) // 2, 2 * 35 + x[1] + y[1],
                                                *config.TABLE_VIEW)
-        self.ending_displayRanking.setSortingEnabled(True)
-        self.ending_displayRanking.resizeColumnsToContents()
-        self.ending_displayRanking.resizeRowsToContents()
-        self.ending_displayRanking.scrollToTop()
 
     def _updatePlayerPerformance(self) -> None:
         path: str = config.DIRECTORY + "/resources/score/{}.csv".format(self._playingDifficulty)
@@ -632,8 +636,13 @@ class GameWindow(QMainWindow):
             winningStatus: str = "LOSE"
         add_new = [[self._startingDate, self._startingTime, self._playerName,
                     round(self._playingRunningTime, 3), winningStatus]]
+
         ExportFile(DataFrame=pd.DataFrame(data=np.concatenate((add_new, value), axis=0), columns=columns, index=None),
                    FilePath=path, )
+
+        df = ReadFile(FilePath=config.DIRECTORY + "/resources/score/{}.csv".format(self._playingDifficulty),
+                      nrows=config.TABLE_MAX_DISPLAY, header=0)
+        self.ending_displayRanking.setModel(TableModel(df))
 
     def stopGame(self) -> None:
         # [0]: Set corresponding window size
