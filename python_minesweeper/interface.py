@@ -1,3 +1,5 @@
+import gc
+
 import numpy as np
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -418,6 +420,7 @@ class GameWindow(QMainWindow):
         # [2]: Build Interface Matrix
         if self.interface_matrix:
             self.interface_matrix.clear()  # Adaptation when replay
+            gc.collect()
 
         self.interface_matrix = [[InterfaceNode(y, x, int(getNode(y=y, x=x)), tuple(scale), self.clickOnNodes, self)
                                   for x in range(0, x_size)] for y in range(0, y_size)]
@@ -622,8 +625,7 @@ class GameWindow(QMainWindow):
 
         # [3]: Viewing Pandas Record
         t = config.TABLE_VIEW
-        self.ending_displayRanking.setGeometry((config.WINDOW_SIZE[0] - t[0]) // 2, 2 * 35 + x[1] + y[1],
-                                               *config.TABLE_VIEW)
+        self.ending_displayRanking.setGeometry((config.WINDOW_SIZE[0] - t[0]) // 2, 2 * 35 + x[1] + y[1], *t)
 
     def _updatePlayerPerformance(self) -> None:
         path: str = config.DIRECTORY + "/resources/score/{}.csv".format(self._playingDifficulty)
