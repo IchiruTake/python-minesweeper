@@ -1,10 +1,9 @@
 from typing import Tuple, List, Union, Optional, Callable, Dict
-
 import pandas as pd
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-
+from core import minesweeper
 from config import CORE_CONFIGURATION as CONFIG, getBombNumberImage, getFlagImage, getBombImage, getQuestionImage, \
     BOMB_NUMBER_DISPLAY as number_displayer, DIFFICULTY, DIALOG_SIZE, getDialogBackground, getExtraButton
 
@@ -106,9 +105,8 @@ class TableModel(QAbstractTableModel):
 
 class InterfaceNode(QLabel):
 
-    __slots__ = ("y", "x", "_value", "_interfaceStatus", "_isMine", "_imageSize", "_imageInterface",
-                 "_bombInterface", "_flagInterface", "_questionInterface")
-
+    __slots__ = ("y", "x", "_value", "_interfaceStatus", "_isMine", "_imageSize", "_imageInterface", "_scalingSize",
+                 "_bombInterface", "_flagInterface", "_questionInterface", "_currentImage", "_message")
     currentSignal = pyqtSignal(int, int, str)
 
     # The node for displaying function only
@@ -486,7 +484,6 @@ class GamingMode(QWidget):
 
     def _submit(self) -> Tuple[Tuple[int, int], str, str]:
         # Attached Function with self.button
-        from core import minesweeper
 
         # [1]: Obtain all the result
         difficulty: str = self.difficulty_comboBox.currentText()
