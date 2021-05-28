@@ -345,10 +345,10 @@ class GamingMode(QWidget):
         InformationSize: Tuple[int, int] = (95, 60)
 
         # ----------------------------------------------------------------------------------------------------------
-        # [2.1]: Setup difficulty Level based on its associated value --> self.difficulty_comboBox
+        # [2.1]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
         self._difficultyLevel: Tuple[str] = tuple(list(DIFFICULTY.keys()))
 
-        self.difficulty_info.setText("difficulty: ")
+        self.difficulty_info.setText("Difficulty: ")
         self.difficulty_info.setGeometry(10, 10, *InformationSize)
 
         self.difficulty_comboBox.setGeometry(115, 10, *ComboBoxSize)
