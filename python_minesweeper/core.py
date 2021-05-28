@@ -1,8 +1,7 @@
 import numpy as np
-from typing import Tuple, Union, List, Optional
+from typing import Tuple, Union, List, Optional, Dict
 from sys import maxsize
 from logging import warning
-from preprocessing import measure_execution_time
 from config import CORE_CONFIGURATION as CONFIG, MOUSE_MESSAGE, DIFFICULTY, difficulty_validation
 import gc
 
@@ -76,9 +75,11 @@ class minesweeper:
         self.adjacencyMatrixEight: np.ndarray = \
             np.zeros(shape=(self.size[0] * self.size[1], self.size[0] * self.size[1]), dtype=np.uint8)
         self.adjacencyMatrixStatus: bool = False
+
         self.BombNotation: int = CONFIG["Bomb Notation"]
         self.FlagNotation: int = CONFIG["Flag Notation"]
         self.QuestionNotation: int = CONFIG["Question Notation"]
+        self.Difficulty: str = difficulty
 
         # [3]: Set Undo & Redo Features
         self._maxStackSizeForUndoRedo = CONFIG["Maximum Stack"]
@@ -90,9 +91,22 @@ class minesweeper:
         self.VictoryStatus: bool = False
         self.PlayingStatus: bool = True
 
+        # [5]: Randomized Function & Extra Attribute
+        self.randomMaxSize: int = int(2e6)
+        self.randomCounter: int = 0
+        self._random_positions: np.ndarray = self.resetRandom()
+
+        self._location: Dict[int, Tuple[int, int]] = {i: self._convertGraphToMatrixWithMath(i)
+                                                      for i in range(0, self.getNumberOfNodes())}
+        self._reversedLocation: Dict[Tuple[int, int], int] = {value: key for key, value in self.getLocation().items()}
+
         # [6]: Running Function
         self.build()
         self.buildAdjacencyMatrix()
+        print("(Size: {} --- Difficulty: {}) --> Bomb Number(s): {} / {} (Ratio: {} % - Overwhelming: {})"
+              .format(self.size, self.Difficulty, self.getBombNumber(), self.getNumberOfNodes(),
+                      round(self.getBombNumber() / self.getNumberOfNodes() * 100, 2),
+                      9 * self.getBombNumber() >= self.getNumberOfNodes()))
 
     # ----------------------------------------------------------------------------------------------------------------
     # [0]: Core Functions for Task Handling
@@ -118,27 +132,27 @@ class minesweeper:
         self.__coreMatrix[y, x] = value
 
     def _updateCoreValue(self, y: int, x: int) -> None:
-        self.__coreMatrix[y, x] += 1
+        self.__coreMatrix[y, x] = self.__coreMatrix[y, x] + 1
 
     def _checkCoreNode(self, y: int, x: int, value: int) -> bool:
         # Return Whether the value in the core matrix is equal
         return True if self.__coreMatrix[y, x] == value else False
 
-    def _convert_MatrixIndex_to_GraphIndex(self, y: int, x: int) -> Optional[int]:
-        if not isinstance(y, int):
+    def _convertMatrixToGraphWithMath(self, y: int, x: int) -> int:
+        if not isinstance(y, (int, np.integer)):
             raise TypeError("Hyper-parameter only accepts positive integer value only (y={y})")
         elif not 0 <= y < self.size[0]:
             raise TypeError("Hyper-parameter is overwhelming (y={} != [0, {}))".format(y, self.size[0]))
 
-        if not isinstance(x, int):
+        if not isinstance(x, (int, np.integer)):
             raise TypeError("Hyper-parameter only accepts positive integer value only (x={x})")
         elif not 0 <= x < self.size[1]:
             raise TypeError("Hyper-parameter is overwhelming (x={} != [0, {}))".format(x, self.size[1]))
 
         return int(y * self.size[0] + x)
 
-    def _convert_GraphIndex_to_MatrixIndex(self, graph_index: int) -> Optional[Tuple[int, int]]:
-        if not isinstance(graph_index, int):
+    def _convertGraphToMatrixWithMath(self, graph_index: int) -> Tuple[int, int]:
+        if not isinstance(graph_index, (int, np.integer)):
             raise TypeError("Hyper-parameter only accepts positive integer value only (index={index})")
 
         if not (0 <= graph_index < self.getNumberOfNodes()):
@@ -147,13 +161,40 @@ class minesweeper:
 
         return int(graph_index // self.size[1]), int(graph_index % self.size[1])
 
+    def _convertMatrixToGraphWithCache(self, y: int, x: int) -> int:
+        if not isinstance(y, (int, np.integer)):
+            raise TypeError("Hyper-parameter only accepts positive integer value only (y={y})")
+        elif not 0 <= y < self.size[0]:
+            raise TypeError("Hyper-parameter is overwhelming (y={} != [0, {}))".format(y, self.size[0]))
+
+        if not isinstance(x, (int, np.integer)):
+            raise TypeError("Hyper-parameter only accepts positive integer value only (x={x})")
+        elif not 0 <= x < self.size[1]:
+            raise TypeError("Hyper-parameter is overwhelming (x={} != [0, {}))".format(x, self.size[1]))
+
+        return self.getReverseLocation()[(y, x)]
+
+    def _convertGraphToMatrixWithCache(self, graph_index: int) -> Tuple[int, int]:
+        if not isinstance(graph_index, (int, np.integer)):
+            raise TypeError("Hyper-parameter only accepts positive integer value only (index={index})")
+
+        if not (0 <= graph_index < self.getNumberOfNodes()):
+            raise TypeError("Hyper-parameter is overwhelming (index={} != [0, {}))"
+                            .format(graph_index, self.getNumberOfNodes()))
+
+        return self.getLocation()[graph_index]
+
     def _updateBombPosition(self, y: int, x: int) -> None:
         self.__bombPosition.append((y, x))
+
+    def resetRandom(self) -> np.ndarray:
+        data = np.uint16 if self.getNumberOfNodes() > np.iinfo(np.uint8).max else np.uint8
+        return np.random.randint(0, self.getNumberOfNodes(), self.randomMaxSize, dtype=data)
 
     # ----------------------------------------------------------------------------------------------------------------
     # [0.2]: For Interface Matrix
     def _openNodeAtInterfaceMatrixByGraph(self, graph_index: int) -> bool:
-        y, x = self._convert_GraphIndex_to_MatrixIndex(graph_index=graph_index)
+        y, x = self._location[graph_index]
         return self._openNodeAtInterfaceMatrixByMatrix(y=y, x=x)
 
     def _openNodeAtInterfaceMatrixByMatrix(self, y: int, x: int) -> bool:
@@ -178,64 +219,76 @@ class minesweeper:
 
     # ----------------------------------------------------------------------------------------------------------------
     # [1]: Building Information for Matrix before Running the Game
-    @measure_execution_time
     def _buildBombPositions(self) -> None:
         """ Implementation to build the matrix by filling with bomb and other """
-        print("---------------------------------------------------------------------------------------")
-        print("The game core is building the position for the bomb")
+        if self.verbose is True:
+            print("---------------------------------------------------------------------------------------")
+            print("The game core is building the position for the bomb")
+
         bomb: int = 0
         notation: int = self.BombNotation
+        max_y, max_x = self.getNumberOfNodesByAxis()
+        visitedNodes: List[bool] = [False] * self.getNumberOfNodes()
 
         while bomb < self._bombNumber:
-            x = int(np.random.randint(0, self.size[0], size=1, dtype=np.uint8)[0])
-            y = int(np.random.randint(0, self.size[1], size=1, dtype=np.uint8)[0])
-
-            if self._checkCoreNode(y=y, x=x, value=notation) is True:
+            if visitedNodes[self._random_positions[self.randomCounter]] is True:
+                self.randomCounter += 1
+                if self.randomCounter == self.randomMaxSize:
+                    self.randomCounter: int = 0
+                    self._random_positions: np.ndarray = self.resetRandom()
                 continue
             else:
-                self._setCoreValue(y=y, x=x, value=notation)
-                self._updateBombPosition(y=y, x=x)
-            # Check top-left
-            if self._checkInput(y=y - 1, x=x - 1) is True:
-                if self._checkCoreNode(y=y - 1, x=x - 1, value=notation) is False:
-                    self._updateCoreValue(y=y - 1, x=x - 1)
+                visitedNodes[self._random_positions[self.randomCounter]] = True
 
-            # Check top-mid
-            if self._checkInput(y=y - 1, x=x) is True:
-                if self._checkCoreNode(y=y - 1, x=x, value=notation) is False:
-                    self._updateCoreValue(y=y - 1, x=x)
+            y, x = self._location[self._random_positions[self.randomCounter]]
 
-            # Check top-right
-            if self._checkInput(y=y - 1, x=x + 1) is True:
-                if self._checkCoreNode(y=y - 1, x=x + 1, value=notation) is False:
-                    self._updateCoreValue(y=y - 1, x=x + 1)
+            bomb += 1
+            self.__coreMatrix[y, x] = notation
+            self.__bombPosition.append((y, x))
 
-            # Check mid-left
-            if self._checkInput(y=y, x=x - 1) is True:
-                if self._checkCoreNode(y=y, x=x - 1, value=notation) is False:
-                    self._updateCoreValue(y=y, x=x - 1)
+            # Check top
+            if 0 <= y - 1 < max_y:
+                if visitedNodes[self._reversedLocation[(y - 1, x)]] is False:
+                    self.__coreMatrix[y - 1, x] += 1
 
-            # Check mid-right
-            if self._checkInput(y=y, x=x + 1) is True:
-                if self._checkCoreNode(y=y, x=x + 1, value=notation) is False:
-                    self._updateCoreValue(y=y, x=x + 1)
+                # Check left
+                if 0 <= x - 1 < max_x:
+                    if visitedNodes[self._reversedLocation[(y - 1, x - 1)]] is False:
+                        self.__coreMatrix[y - 1, x - 1] += 1
 
-            # Check bottom-left
-            if self._checkInput(y=y + 1, x=x - 1) is True:
-                if self._checkCoreNode(y=y + 1, x=x - 1, value=notation) is False:
-                    self._updateCoreValue(y=y + 1, x=x - 1)
+                # Check right
+                if 0 <= x + 1 < max_x:
+                    if visitedNodes[self._reversedLocation[(y - 1, x + 1)]] is False:
+                        self.__coreMatrix[y - 1, x + 1] += 1
 
-            # Check bottom-mid
-            if self._checkInput(y=y + 1, x=x) is True:
-                if self._checkCoreNode(y=y + 1, x=x, value=notation) is False:
-                    self._updateCoreValue(y=y + 1, x=x)
+            if 0 <= x - 1 < max_x:
+                if visitedNodes[self._reversedLocation[(y, x - 1)]] is False:
+                    self.__coreMatrix[y, x - 1] += 1
 
-            # Check bottom-right
-            if self._checkInput(y=y + 1, x=x + 1) is True:
-                if self._checkCoreNode(y=y + 1, x=x + 1, value=notation) is False:
-                    self._updateCoreValue(y=y + 1, x=x + 1)
+            if 0 <= x + 1 < max_x:
+                if visitedNodes[self._reversedLocation[(y, x + 1)]] is False:
+                    self.__coreMatrix[y, x + 1] += 1
 
-            bomb += 1  # Update bomb counter
+            # Check bottom
+            if 0 <= y + 1 < max_y:
+                if visitedNodes[self._reversedLocation[(y + 1, x)]] is False:
+                    self.__coreMatrix[y + 1, x] += 1
+
+                # Check left
+                if 0 <= x - 1 < max_x:
+                    if visitedNodes[self._reversedLocation[(y + 1, x - 1)]] is False:
+                        self.__coreMatrix[y + 1, x - 1] += 1
+
+                # Check right
+                if 0 <= x + 1 < max_x:
+                    if visitedNodes[self._reversedLocation[(y + 1, x + 1)]] is False:
+                        self.__coreMatrix[y + 1, x + 1] += 1
+
+            self.randomCounter += 1
+            if self.randomCounter == self.randomMaxSize:
+                self.randomCounter: int = 0
+                self._random_positions: np.ndarray = self.resetRandom()
+
         pass
 
     def buildAdjacencyMatrix(self) -> None:
@@ -246,42 +299,42 @@ class minesweeper:
             max_y, max_x = self.getNumberOfNodesInVerticalAxis(), self.getNumberOfNodesInHorizontalAxis()
             for y, sub_matrix in enumerate(self.__coreMatrix):
                 for x, node in enumerate(sub_matrix):
-                    graph_index = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x)
+                    graph_index = self._reversedLocation[(y, x)]
 
                     if 0 <= y - 1 < max_y:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x)
+                        if 0 <= x - 1 < max_x:
+                            new = self._reversedLocation[(y - 1, x - 1)]
+                            self.adjacencyMatrixEight[graph_index, new] = 1
+
+                        if 0 <= x + 1 < max_x:
+                            new = self._reversedLocation[(y - 1, x + 1)]
+                            self.adjacencyMatrixEight[graph_index, new] = 1
+
+                        new = self._reversedLocation[(y - 1, x)]
                         self.adjacencyMatrixFour[graph_index, new] = 1
                         self.adjacencyMatrixEight[graph_index, new] = 1
 
                     if 0 <= y + 1 < max_y:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x)
+                        if 0 <= x - 1 < max_x:
+                            new = self._reversedLocation[(y + 1, x - 1)]
+                            self.adjacencyMatrixEight[graph_index, new] = 1
+
+                        if 0 <= x + 1 < max_x:
+                            new = self._reversedLocation[(y + 1, x + 1)]
+                            self.adjacencyMatrixEight[graph_index, new] = 1
+
+                        new = self._reversedLocation[(y + 1, x)]
                         self.adjacencyMatrixFour[graph_index, new] = 1
                         self.adjacencyMatrixEight[graph_index, new] = 1
 
                     if 0 <= x - 1 < max_x:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x - 1)
+                        new = self._reversedLocation[(y, x - 1)]
                         self.adjacencyMatrixFour[graph_index, new] = 1
                         self.adjacencyMatrixEight[graph_index, new] = 1
 
                     if 0 <= x + 1 < max_x:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y, x=x + 1)
+                        new = self._reversedLocation[(y, x + 1)]
                         self.adjacencyMatrixFour[graph_index, new] = 1
-                        self.adjacencyMatrixEight[graph_index, new] = 1
-
-                    if 0 <= y - 1 < max_y and 0 <= x - 1 < max_x:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x - 1)
-                        self.adjacencyMatrixEight[graph_index, new] = 1
-
-                    if 0 <= y - 1 < max_y and 0 <= x + 1 < max_x:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x + 1)
-                        self.adjacencyMatrixEight[graph_index, new] = 1
-
-                    if 0 <= y + 1 < max_y and 0 <= x - 1 < max_x:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x - 1)
-                        self.adjacencyMatrixEight[graph_index, new] = 1
-
-                    if 0 <= y + 1 < max_y and 0 <= x + 1 < max_x:
-                        new = self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x + 1)
                         self.adjacencyMatrixEight[graph_index, new] = 1
 
         return None
@@ -371,7 +424,7 @@ class minesweeper:
             recorded_stack[index] = True
 
             # [2]: Convert to Matrix Index for Calculation
-            y, x = self._convert_GraphIndex_to_MatrixIndex(graph_index=index)
+            y, x = self._location[index]
 
             # Condition to check whether the core matrix that zero.
             # If self.__core[y, x] = 0: No object found, continue to flow; else, don't flow it
@@ -379,19 +432,19 @@ class minesweeper:
                 # [3]: Flow the graph into four direction: Bottom, Top, Left, Right
                 # [3.1]: Flow to Bottom
                 if y + 1 < self.size[0]:
-                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y + 1, x=x),
+                    self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y + 1, x=x),
                                                   recorded_stack=recorded_stack)
                 # [3.2]: Flow to Top
                 if y - 1 >= 0:
-                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y - 1, x=x),
+                    self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y - 1, x=x),
                                                   recorded_stack=recorded_stack)
                 # [3.2]: Flow to Left
                 if x - 1 >= 0:
-                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y, x=x - 1),
+                    self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y, x=x - 1),
                                                   recorded_stack=recorded_stack)
                 # [3.3]: Flow to Right
                 if x + 1 < self.size[1]:
-                    self._recursiveDepthFirstFlow(index=self._convert_MatrixIndex_to_GraphIndex(y=y, x=x + 1),
+                    self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y, x=x + 1),
                                                   recorded_stack=recorded_stack)
 
         pass
@@ -399,7 +452,7 @@ class minesweeper:
     def _graphExpansion(self, y_start: int, x_start: int) -> None:
         if self._checkCoreNode(y=y_start, x=x_start, value=0) is True:
             visiting_stack: List[bool] = [False] * int(self.getNumberOfNodes())
-            index_start = self._convert_MatrixIndex_to_GraphIndex(y=y_start, x=x_start)
+            index_start = self._convertMatrixToGraphWithCache(y=y_start, x=x_start)
             self._recursiveDepthFirstFlow(index=index_start, recorded_stack=visiting_stack)
 
             for graph_index, state in enumerate(visiting_stack):
@@ -504,7 +557,7 @@ class minesweeper:
         x: np.ndarray = self.getInterfaceMatrix().view()
         self._accomplishedNode: int = x[(x == 1) | (x == -1)].size
 
-    def resetGame(self, size: Union[int, Tuple[int, int]] = 16, difficulty: str = "Medium"):
+    def resetGame(self, size: Optional[Union[int, Tuple[int, int]]] = 16, difficulty: str = "Medium"):
         # [1]: Validate Hyper-parameters
         if True:
             if size == -1 or size is None:
@@ -518,9 +571,12 @@ class minesweeper:
                             " False Initialization: The size should be a tuple with 2-positive integers or "
                             "positive integer")
 
-                if self.size[0] != size[:2][0] or self.size[1] != size[:2][1]:
+                if self.size[0] != size[0] or self.size[1] != size[1]:
                     self.adjacencyMatrixStatus = False
                     self.size = size[:2]
+                    self._random_positions: np.ndarray = self.resetRandom()
+                    self._location = {i: self._convertGraphToMatrixWithMath(i) for i in range(self.getNumberOfNodes())}
+                    self._reversedLocation = {value: key for key, value in self.getLocation().items()}
 
             if difficulty is not None:
                 difficulty_validation(key=difficulty)
@@ -531,7 +587,7 @@ class minesweeper:
         # [2]: Reset everything having
         # [2.1]: Setup Core for Data Implementation
         self.__coreMatrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
-        self.__bombPosition: List[Tuple[int, int]] = []
+        self.__bombPosition.clear()
         self._remainingFlags: int = self._bombNumber
 
         # [2]: Set Configuration
@@ -543,6 +599,7 @@ class minesweeper:
                 np.zeros(shape=(self.getNumberOfNodes(), self.getNumberOfNodes()), dtype=np.uint8)
             self.adjacencyMatrixEight: np.ndarray = \
                 np.zeros(shape=(self.getNumberOfNodes(), self.getNumberOfNodes()), dtype=np.uint8)
+            self.buildAdjacencyMatrix()
 
         # [3]: Set Undo & Redo Features
         self.__undoStack: List[np.ndarray] = []
@@ -554,49 +611,61 @@ class minesweeper:
 
         # [5]: Running Function
         self.build()
-        if self.adjacencyMatrixStatus is False:
-            self.buildAdjacencyMatrix()
 
         return None
+
+    def fastReset(self):
+        self.__coreMatrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
+        self.__bombPosition.clear()
+        self._remainingFlags: int = self._bombNumber
+        self.build()
 
     # [x]: Getter and Display Function --------------------------------------------------------
     # [x.1] Getter Function
     def _getNeighbors4Axis(self, y: int, x: int) -> List[Tuple[int, int]]:
         position: List[Tuple[int, int]] = []
-        if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y - 1, x))
-        if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y + 1, x))
-        if 0 <= y < self.getNumberOfNodesInVerticalAxis() and 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y, x - 1))
-        if 0 <= y < self.getNumberOfNodesInVerticalAxis() and 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y, x + 1))
+        max_y, max_x = self.getNumberOfNodesByAxis()
+        if 0 <= x < max_x:
+            if 0 <= y - 1 < max_y:
+                position.append((y - 1, x))
+            if 0 <= y + 1 < max_y:
+                position.append((y - 1, x))
+
+        if 0 <= y < max_y:
+            if 0 <= x - 1 < max_x:
+                position.append((y, x - 1))
+            if 0 <= x + 1 < max_x:
+                position.append((y, x + 1))
+
         return position
 
     def _getNeighbors8Axis(self, y: int, x: int) -> List[Tuple[int, int]]:
-        position: List[Tuple[int, int]] = []
-        if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y - 1, x - 1))
-        if 0 <= y - 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y - 1, x + 1))
-        if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x - 1 < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y + 1, x - 1))
-        if 0 <= y + 1 < self.getNumberOfNodesInVerticalAxis() and 0 <= x + 1 < self.getNumberOfNodesInHorizontalAxis():
-            position.append((y + 1, x + 1))
-        position += self._getNeighbors4Axis(y=y, x=x)
+        position: List[Tuple[int, int]] = self._getNeighbors4Axis(y=y, x=x)
+        max_y, max_x = self.getNumberOfNodesByAxis()
+        if 0 <= y - 1 < max_y:
+            if 0 <= x - 1 < max_x:
+                position.append((y - 1, x - 1))
+            if 0 <= x + 1 < max_x:
+                position.append((y - 1, x + 1))
+
+        if 0 <= y + 1 < max_y:
+            if 0 <= x - 1 < max_x:
+                position.append((y + 1, x - 1))
+            if 0 <= x + 1 < max_x:
+                position.append((y + 1, x + 1))
+
         return position
 
     def getCoreMatrix(self) -> np.ndarray:
-        return self.__coreMatrix
+        return self.__coreMatrix.copy()
 
-    def getHashingCoreMatrix(self, minimum_mode: bool = False):
-        matrix = self.getCoreMatrix().copy()
-        for y, x in self.getBombPositions():
+    def getHashingCoreMatrix(self, minimum_mode: bool = False) -> np.ndarray:
+        matrix = self.getCoreMatrix()
+        bomb_location: List[Tuple[int, int]] = self.getBombPositions()
+        for y, x in bomb_location:
             respectivePosition = self._getNeighbors8Axis(y=y, x=x)
-            node_value: List[int] = [self.getCoreNode(y=y_, x=x_) for y_, x_ in respectivePosition]
-            matrix[y, x] = min(node_value) if minimum_mode is True else max(node_value)
-            respectivePosition.clear()
-            node_value.clear()
+            matrix[y, x] = min([self.getCoreNode(y=y_, x=x_) for y_, x_ in respectivePosition]) \
+                if minimum_mode is True else max([self.getCoreNode(y=y_, x=x_) for y_, x_ in respectivePosition])
         return matrix
 
     def getCoreNode(self, y: int, x: int) -> np.integer:
@@ -616,6 +685,9 @@ class minesweeper:
 
     def getNumberOfNodesInHorizontalAxis(self) -> int:
         return self.size[1]
+
+    def getNumberOfNodesByAxis(self) -> Tuple[int, int]:
+        return self.size
 
     def getBombNumber(self) -> int:
         return self._bombNumber
@@ -644,6 +716,35 @@ class minesweeper:
     def getUnaccomplishedNodes(self) -> int:
         return self.getNumberOfNodes() - self._accomplishedNode
 
+    def getLocation(self) -> Dict[int, Tuple[int, int]]:
+        return self._location
+
+    def getReverseLocation(self) -> Dict[Tuple[int, int], int]:
+        return self._reversedLocation
+
+    def identifyBombByTanh(self) -> np.ndarray:
+        # If tanhMatrix, convert affection nodes first
+        tanhMatrix = self.getCoreMatrix()
+        tanhMatrix[tanhMatrix == 0] = -1
+        for value in range(1, 9):
+            tanhMatrix[tanhMatrix == value] = -1
+        tanhMatrix[tanhMatrix == self.BombNotation] = 1
+
+        return tanhMatrix
+
+    def convertTanhToSigmoid(self, tanhMatrix: Optional[np.ndarray]) -> np.ndarray:
+        sigmoidMatrix = self.identifyBombByTanh() if tanhMatrix is None else tanhMatrix.copy()
+        sigmoidMatrix[sigmoidMatrix == -1] = 0
+
+        return sigmoidMatrix
+
+    def searchBombWithActivation(self, needRavel: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+        tanhMatrix = self.identifyBombByTanh() if needRavel is False else self.identifyBombByTanh().ravel()
+        sigmoidMatrix = self.convertTanhToSigmoid(tanhMatrix=tanhMatrix) \
+            if needRavel is False else self.convertTanhToSigmoid(tanhMatrix=tanhMatrix).ravel()
+
+        return tanhMatrix, sigmoidMatrix
+
     # [x.2] Display Function
     def displayCoreMatrix(self) -> None:
         print("=" * 100)
@@ -656,7 +757,7 @@ class minesweeper:
     def displayBetterCoreMatrix(self) -> None:
         print("=" * 100)
         print("Better Core Matrix: ")
-        matrix: np.ndarray = np.array(self.getCoreMatrix().copy(), dtype=np.object_)
+        matrix: np.ndarray = np.array(self.getCoreMatrix(), dtype=np.object_)
         matrix[matrix == self.BombNotation] = "*"
         matrix[matrix == 0] = "_"
         for value in range(1, 9):
@@ -679,7 +780,7 @@ class minesweeper:
     def displayBetterHashedCoreMatrix(self, minimum_mode: bool = False) -> None:
         print("=" * 100)
         print("Better Hashing Core Matrix: ")
-        matrix: np.ndarray = self.getHashingCoreMatrix(minimum_mode=minimum_mode)
+        matrix: np.ndarray = np.array(self.getHashingCoreMatrix(minimum_mode=minimum_mode), dtype=np.object_)
         matrix[matrix == 0] = "_"
         for value in range(1, 9):
             matrix[matrix == value] = str(value)
