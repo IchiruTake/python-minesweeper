@@ -8,6 +8,12 @@ Minesweeper is a single-player puzzle video game. The objective of the game is t
 - Undo-Redo Button: Record the previous state to play with (Although you still be lose if clicked on mine)
 - (Local) Database Recording: Save your performance to get top
 - Image Hovering: Easier for viewing
+- Python Functions: (__slots__) This is attribute controlling small objects to avoid memory garbage. Practical Results shows that we accessed to its attribute faster by 15 - 20 % and reduce 5 - 10% memory due to the inavailability of __dict__ and __weakrefs__ (__slots__ replacement)
+
+# Achievement:
+- Modern GUI
+- Automatic Garbage Collection
+- Time & Memory 
 
 
 # Design Pattern:
