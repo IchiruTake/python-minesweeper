@@ -1,10 +1,9 @@
 from typing import Tuple, List, Union, Optional, Callable, Dict
-
 import pandas as pd
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-
+from core import minesweeper
 from config import CORE_CONFIGURATION as CONFIG, getBombNumberImage, getFlagImage, getBombImage, getQuestionImage, \
     BOMB_NUMBER_DISPLAY as number_displayer, DIFFICULTY, DIALOG_SIZE, getDialogBackground, getExtraButton
 
@@ -106,9 +105,8 @@ class TableModel(QAbstractTableModel):
 
 class InterfaceNode(QLabel):
 
-    __slots__ = ("y", "x", "_value", "_interfaceStatus", "_isMine", "_imageSize", "_imageInterface",
-                 "_bombInterface", "_flagInterface", "_questionInterface")
-
+    __slots__ = ("y", "x", "_value", "_interfaceStatus", "_isMine", "_imageSize", "_imageInterface", "_scalingSize",
+                 "_bombInterface", "_flagInterface", "_questionInterface", "_currentImage", "_message")
     currentSignal = pyqtSignal(int, int, str)
 
     # The node for displaying function only
@@ -347,10 +345,10 @@ class GamingMode(QWidget):
         InformationSize: Tuple[int, int] = (95, 60)
 
         # ----------------------------------------------------------------------------------------------------------
-        # [2.1]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
+        # [2.1]: Setup difficulty Level based on its associated value --> self.difficulty_comboBox
         self._difficultyLevel: Tuple[str] = tuple(list(DIFFICULTY.keys()))
 
-        self.difficulty_info.setText("Difficulty: ")
+        self.difficulty_info.setText("difficulty: ")
         self.difficulty_info.setGeometry(10, 10, *InformationSize)
 
         self.difficulty_comboBox.setGeometry(115, 10, *ComboBoxSize)
@@ -359,7 +357,7 @@ class GamingMode(QWidget):
             self.difficulty_comboBox.setCurrentIndex(1)
         else:
             self.difficulty_comboBox.setCurrentIndex(self._difficultyLevel.index(difficulty))
-        self.difficulty_comboBox.setPlaceholderText("Choose Your Difficulty Level: ")
+        self.difficulty_comboBox.setPlaceholderText("Choose Your difficulty Level: ")
 
         # [2.2]: Setup Size for Playing Matrix --> self.matrix_comboBox
         start_size, end_size = 8, 99
@@ -377,7 +375,7 @@ class GamingMode(QWidget):
             self.matrix_comboBox.setCurrentIndex(size - start_size)
         self.matrix_comboBox.setPlaceholderText("Choose Your Matrix Size: ")
 
-        # [2.3]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
+        # [2.3]: Setup difficulty Level based on its associated value --> self.difficulty_comboBox
         self.name_info.setText("Your Name: ")
         self.name_info.setGeometry(10, 150, *InformationSize)
 
@@ -404,7 +402,7 @@ class GamingMode(QWidget):
             self.setVisible(True)
             self.setFocus()
 
-        # [2.1]: Initialize Difficulty
+        # [2.1]: Initialize difficulty
         if True:
             self.difficulty_info.setEnabled(True)
             self.difficulty_info.setMouseTracking(True)
@@ -486,7 +484,6 @@ class GamingMode(QWidget):
 
     def _submit(self) -> Tuple[Tuple[int, int], str, str]:
         # Attached Function with self.button
-        from core import minesweeper
 
         # [1]: Obtain all the result
         difficulty: str = self.difficulty_comboBox.currentText()
