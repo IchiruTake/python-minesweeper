@@ -1,6 +1,8 @@
 # python-minesweeper
 Minesweeper is a single-player puzzle video game. The objective of the game is to clear a rectangular board containing hidden "mines" or bombs without detonating any of them, with help from clues about the number of neighboring mines in each field. 
 
+Download: https://tom-pham.itch.io/python-minesweeper
+
 ![image](https://github.com/IchiruTake/python-minesweeper/blob/main/image/%5BTest%5D%20Image%20%231.png)
 
 # Features:
