@@ -79,7 +79,7 @@ class minesweeper:
         self.BombNotation: int = CONFIG["Bomb Notation"]
         self.FlagNotation: int = CONFIG["Flag Notation"]
         self.QuestionNotation: int = CONFIG["Question Notation"]
-        self.Difficulty: str = difficulty
+        self.difficulty: str = difficulty
 
         # [3]: Set Undo & Redo Features
         self._maxStackSizeForUndoRedo = CONFIG["Maximum Stack"]
@@ -92,7 +92,7 @@ class minesweeper:
         self.PlayingStatus: bool = True
 
         # [5]: Randomized Function & Extra Attribute
-        self.randomMaxSize: int = int(2e6)
+        self.randomMaxSize: int = int(3e6)
         self.randomCounter: int = 0
         self._random_positions: np.ndarray = self.resetRandom()
 
@@ -103,10 +103,7 @@ class minesweeper:
         # [6]: Running Function
         self.build()
         self.buildAdjacencyMatrix()
-        print("(Size: {} --- Difficulty: {}) --> Bomb Number(s): {} / {} (Ratio: {} % - Overwhelming: {})"
-              .format(self.size, self.Difficulty, self.getBombNumber(), self.getNumberOfNodes(),
-                      round(self.getBombNumber() / self.getNumberOfNodes() * 100, 2),
-                      9 * self.getBombNumber() >= self.getNumberOfNodes()))
+        self.displayInformation()
 
     # ----------------------------------------------------------------------------------------------------------------
     # [0]: Core Functions for Task Handling
@@ -580,8 +577,10 @@ class minesweeper:
 
             if difficulty is not None:
                 difficulty_validation(key=difficulty)
-                self._bombNumber: int = int(DIFFICULTY[difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
-                                            DIFFICULTY[difficulty][1])
+                self.difficulty = difficulty
+
+            self._bombNumber: int = int(DIFFICULTY[self.difficulty][0] * (self.size[0] / 2 + self.size[1] / 2) **
+                                        DIFFICULTY[self.difficulty][1])
             pass
 
         # [2]: Reset everything having
@@ -611,8 +610,7 @@ class minesweeper:
 
         # [5]: Running Function
         self.build()
-
-        return None
+        self.displayInformation()
 
     def fastReset(self):
         self.__coreMatrix: np.ndarray = np.zeros(shape=self.size, dtype=np.int8)
@@ -727,10 +725,19 @@ class minesweeper:
         tanhMatrix = self.getCoreMatrix()
         tanhMatrix[tanhMatrix == 0] = -1
         for value in range(1, 9):
-            tanhMatrix[tanhMatrix == value] = -1
+            tanhMatrix[tanhMatrix == value] = 0
         tanhMatrix[tanhMatrix == self.BombNotation] = 1
 
         return tanhMatrix
+
+    def identifyBombBySigmoid(self) -> np.ndarray:
+        # If tanhMatrix, convert affection nodes first
+        sigmoidMatrix = self.getCoreMatrix()
+        for value in range(1, 9):
+            sigmoidMatrix[sigmoidMatrix == value] = 0
+        sigmoidMatrix[sigmoidMatrix == self.BombNotation] = 1
+
+        return sigmoidMatrix
 
     def convertTanhToSigmoid(self, tanhMatrix: Optional[np.ndarray]) -> np.ndarray:
         sigmoidMatrix = self.identifyBombByTanh() if tanhMatrix is None else tanhMatrix.copy()
@@ -752,7 +759,8 @@ class minesweeper:
         print(self.getCoreMatrix())
         print("Matrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
-        print("=" * 100, "\n")
+        print("=" * 100)
+        print()
 
     def displayBetterCoreMatrix(self) -> None:
         print("=" * 100)
@@ -767,7 +775,8 @@ class minesweeper:
             print(matrix[row].tolist())
         print("\nMatrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
-        print("=" * 100, "\n")
+        print("=" * 100)
+        print()
 
     def displayHashedCoreMatrix(self, minimum_mode: bool = False) -> None:
         print("=" * 100)
@@ -775,7 +784,8 @@ class minesweeper:
         print(self.getHashingCoreMatrix(minimum_mode=minimum_mode))
         print("Matrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
-        print("=" * 100, "\n")
+        print("=" * 100)
+        print()
 
     def displayBetterHashedCoreMatrix(self, minimum_mode: bool = False) -> None:
         print("=" * 100)
@@ -789,7 +799,8 @@ class minesweeper:
             print(matrix[row].tolist())
         print("\nMatrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
-        print("=" * 100, "\n")
+        print("=" * 100)
+        print()
 
     def displayInterfaceMatrix(self) -> None:
         print("=" * 100)
@@ -797,7 +808,8 @@ class minesweeper:
         matrix = self.getInterfaceMatrix()
         for row in range(0, matrix.shape[0]):
             print(matrix[row].tolist())
-        print("=" * 100, "\n")
+        print("=" * 100)
+        print()
 
     def displayBetterInterfaceMatrix(self) -> None:
         print("=" * 100)
@@ -809,5 +821,12 @@ class minesweeper:
         matrix[matrix == self.QuestionNotation] = "?"
         for row in range(0, matrix.shape[0]):
             print(matrix[row].tolist())
-        print("=" * 100, "\n")
+        print("=" * 100)
+        print()
+
+    def displayInformation(self) -> None:
+        ratio = self.getBombNumber() / self.getNumberOfNodes()
+        print(f"(Size: {self.size} --- Difficulty: {self.difficulty}) --> Bomb Number(s): "
+              f"{self.getBombNumber()} / {self.getNumberOfNodes()} "
+              f"(Ratio: {round(ratio * 100, 2)} % - Overwhelming: {9 * self.getBombNumber() >= self.getNumberOfNodes()})")
     # [ ] --------------------------------------------------------
