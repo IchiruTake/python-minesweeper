@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from core import minesweeper
 import config
 from time import time
-from preprocessing import ReadFile, ExportFile
+from preprocessing import ReadFile, ExportFile, FixPath
 
 from tensorflow.keras.layers import Dense, Average
 from tensorflow.keras import Input, Model
@@ -15,10 +15,11 @@ from tensorflow.keras.callbacks import (CSVLogger, EarlyStopping, ModelCheckpoin
 
 
 class LearningModel:
-    def __init__(self, matrixSize: Union[int, Tuple[int, int]] = 16, numberOfSamples: Union[int, float] = int(2e6),
-                 sigmoidLearning: bool = True, tanhLearning: bool = False,
-                 randomState: int = 42, easyRatio: float = 0.25, mediumRatio: float = 0.25, hardRatio: float = 0.25,
-                 extremeRatio: float = 0.25):
+    def __init__(self, folder: str = "model/", matrixSize: Union[int, Tuple[int, int]] = 16,
+                 numberOfSamples: Union[int, float] = int(2e6),
+                 sigmoidLearning: bool = True, tanhLearning: bool = False, easyRatio: float = 0.25,
+                 mediumRatio: float = 0.25, hardRatio: float = 0.25,
+                 extremeRatio: float = 0.25, randomState: int = 42, ):
         # Hyper-parameter Verification
         if True:
             if True:
@@ -42,6 +43,7 @@ class LearningModel:
             if sigmoidLearning is False and tanhLearning is False:
                 raise TypeError("We only allows one learning mode at the time, please choose again")
 
+            folder = FixPath(FileName=folder, extension="/")
             pass
 
         # [1]: Initialize Core Game
@@ -59,6 +61,7 @@ class LearningModel:
                 self.distribution[idx][2] = sum(self.distribution[idx - 1][1:])
 
         self.size: Tuple[int, int] = (self.number_of_samples, self.gameCore.getNumberOfNodes())
+        self.folder: str = folder
 
         # [3]: Setup object's attribute
         # In sigmoid: 1: bomb --- 0: no bomb
@@ -86,6 +89,7 @@ class LearningModel:
         else:
             self._finalActivation: str = "sigmoid" if sigmoidLearning is True else "tanh"
         self._model: Model = self._buildModel()
+        self._model.summary()
 
         self.y_train_pred: Optional[np.ndarray] = None
         self.y_test_pred: Optional[np.ndarray] = None
@@ -168,9 +172,9 @@ class LearningModel:
             pass
 
         callbacks = [EarlyStopping(monitor="val_loss", mode="min", verbose=0, min_delta=0.0025, patience=15),
-                     ModelCheckpoint(filepath="model/Best TensorFlow Model for Prediction.h5",
+                     ModelCheckpoint(filepath=self.folder + "Best TensorFlow Model for Prediction.h5",
                                      monitor="val_loss", mode="min", verbose=0, save_best_only=True),
-                     TerminateOnNaN(), CSVLogger(filename="model/Histogram Profile.h5")]
+                     TerminateOnNaN(), CSVLogger(filename=self.folder + "Histogram Profile.h5")]
         return callbacks
 
     def train(self, trainPath: Optional[str] = None, testPath: Optional[str] = None):
@@ -186,6 +190,8 @@ class LearningModel:
 
         hist = self._model.fit(x=x_train, y=y_train, batch_size=256, epochs=100, callbacks=callbacks, shuffle=False,
                                validation_data=(x_test, y_test), use_multiprocessing=True, workers=6)
+        self._model.save(filepath=self.folder + "Last Model (Opt Included).h5", include_optimizer=True)
+        self._model.save(filepath=self.folder + "Last Model.h5", include_optimizer=False)
 
         self.y_train_pred = np.array(self._model.predict(x=x_train, batch_size=256, use_multiprocessing=True,
                                                          workers=6), dtype=np.float32)
@@ -213,10 +219,14 @@ class LearningModel:
             self.y_test_pred = self.y_test_pred.astype(np.int8)
 
         if trainPath is not None:
+            if trainPath == "":
+                trainPath = self.folder + "Train Prediction.csv"
             ExportFile(DataFrame=pd.DataFrame(data=self.y_train_pred, index=None, columns=None),
                        FilePath=trainPath, index=False, index_label=None)
 
         if testPath is not None:
+            if testPath == "":
+                testPath = self.folder + "Train Prediction.csv"
             ExportFile(DataFrame=pd.DataFrame(data=self.y_test_pred, index=None, columns=None),
                        FilePath=testPath, index=False, index_label=None)
 
