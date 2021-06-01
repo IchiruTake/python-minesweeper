@@ -44,16 +44,16 @@ def object_memory_profiler(Object: object, verbose: bool = True, sorting_mode: b
             numpy_total += size
 
         if verbose is True and sorting_mode is False:
-            msg = "{} ({}): \t\t\t\t{} bytes --> Shape: {}".format(name, type(obj), size, obj.shape) \
-                if isinstance(obj, ndarray) else "{} ({}): \t\t\t\t{} bytes".format(name, type(obj), size)
+            msg = "{} ({}): {} bytes --> Shape: {}".format(name, type(obj), size, obj.shape) \
+                if isinstance(obj, ndarray) else "{} ({}): {} bytes".format(name, type(obj), size)
             print(msg)
 
         arr.append([name, type(obj), size])
     if sorting_mode is True and verbose is True:
         arr.sort(key=lambda item: int(item[2]), reverse=descending)
         for name, dtype, size in arr:
-            msg = "{} ({}): \t\t\t\t{} bytes --> Shape: {}".format(name, dtype, size, getattr(Object, name).shape) \
-                if isinstance(getattr(Object, name), ndarray) else "{} ({}): \t\t\t\t{} bytes".format(name, dtype, size)
+            msg = "{} ({}): {} bytes --> Shape: {}".format(name, dtype, size, getattr(Object, name).shape) \
+                if isinstance(getattr(Object, name), ndarray) else "{} ({}): {} bytes".format(name, dtype, size)
             print(msg)
 
     print("-" * 80)
