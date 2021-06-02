@@ -8,7 +8,7 @@ from time import time, sleep
 import config
 from typing import Tuple, List, Union, Optional, Callable
 from core import minesweeper
-from component_interface import InterfaceNode, GamingMode, HoveringButton, TableModel
+from component_interface import InterfaceNode, DeclaringWidget, HoveringButton, TableModel
 from preprocessing import ReadFile, ExportFile
 import pandas as pd
 
@@ -51,8 +51,8 @@ class GameWindow(QMainWindow):
         self.welcome_background: QLabel = QLabel(self)
         self.welcome_title: QLabel = QLabel(self)
         self.welcome_playButton: HoveringButton = HoveringButton(self)
-        self.dialog: GamingMode = GamingMode(self._playingMatrixSize, self._playingDifficulty,
-                                             self._playerName, self)
+        self.dialog: DeclaringWidget = DeclaringWidget(self._playingMatrixSize, self._playingDifficulty,
+                                                       self._playerName, self)
         self.dialog.currentSignal.connect(self._assignGame)
         self.dialogSignal.connect(self.deactivateDialog)
         self.dialog.update()
@@ -77,7 +77,7 @@ class GameWindow(QMainWindow):
         # [4]: Playing Ground
         # In the playing background we have timer to display, number of assigned flags, redo - undo button
         # [4.1]: Setup Core
-        self.interface_matrix: Optional[List[List[Union[InterfaceNode, int]]]] = None
+        self.IO_nodeMatrix: Optional[List[List[Union[InterfaceNode, int]]]] = None
         self.playing_background: QLabel = QLabel(self)
         self.displayGamingStatus: bool = False
 
@@ -395,8 +395,8 @@ class GameWindow(QMainWindow):
 
         self.__gameCore = minesweeper(size=self._playingMatrixSize, difficulty=self._playingDifficulty, verbose=False)
         getNode: Callable = self.__gameCore.getCoreNode
-        y_size: int = self.__gameCore.getNumberOfNodesInVerticalAxis()
-        x_size: int = self.__gameCore.getNumberOfNodesInHorizontalAxis()
+        max_y: int = self.__gameCore.getNumberOfNodesInVerticalAxis()
+        max_x: int = self.__gameCore.getNumberOfNodesInHorizontalAxis()
 
         # [1.2]: Finding Image Scaling Size - Scale if not fit with the matrix. Note that we also have
         # extra section on top for drawing
@@ -405,7 +405,7 @@ class GameWindow(QMainWindow):
         maximum_nodes: int = (min(config.WINDOW_SIZE) - config.BOARD_LENGTH - 75) // \
                              (min(size) + min(config.BOMB_NUMBER_DISPLAY["Separation"]))
 
-        while maximum_nodes <= x_size:  # Adaptation Only
+        while maximum_nodes <= max_x:  # Adaptation Only
             # Update Nodes Size - Update Separation - Calculate max nodes again
             size[0] -= 1
             size[1] -= 1
@@ -418,16 +418,17 @@ class GameWindow(QMainWindow):
                                       size[1] / config.getBombNumberImage(key=-1)[1])
 
         # [2]: Build Interface Matrix
-        if self.interface_matrix:
-            self.interface_matrix.clear()  # Adaptation when replay
+        if self.IO_nodeMatrix:
+            self.IO_nodeMatrix.clear()  # Adaptation when replay
             gc.collect()
 
-        self.interface_matrix = [[InterfaceNode(y, x, int(getNode(y=y, x=x)), tuple(scale), self.clickOnNodes, self)
-                                  for x in range(0, x_size)] for y in range(0, y_size)]
+        self.IO_nodeMatrix = [[InterfaceNode(y, x, int(getNode(y=y, x=x)), tuple(scale), self.clickOnNodes,
+                                                self.multiHover, self.multiClick, self)
+                                  for x in range(0, max_x)] for y in range(0, max_y)]
         sleep(0.05)
-        self._playingWidth = x_size * (size[0] + config.BOMB_NUMBER_DISPLAY["Separation"][0]) + \
+        self._playingWidth = max_x * (size[0] + config.BOMB_NUMBER_DISPLAY["Separation"][0]) + \
                              config.BOMB_NUMBER_DISPLAY["Initial"][1]
-        self._playingHeight = y_size * (size[1] + config.BOMB_NUMBER_DISPLAY["Separation"][1]) + \
+        self._playingHeight = max_y * (size[1] + config.BOMB_NUMBER_DISPLAY["Separation"][1]) + \
                               config.BOMB_NUMBER_DISPLAY["Initial"][1] + config.BOARD_LENGTH
 
     def _initializeGamingInterface(self) -> None:
@@ -514,31 +515,50 @@ class GameWindow(QMainWindow):
 
     # [4.2]: (Interface) Matrix Clicking
     def _revealAllNodes(self) -> None:
-        for y in range(0, self.__gameCore.getNumberOfNodesInVerticalAxis()):
-            for x in range(0, self.__gameCore.getNumberOfNodesInHorizontalAxis()):
-                self.interface_matrix[y][x].updateStatus(interfaceStatus=self.__gameCore.getInterfaceNode(y=y, x=x))
-                self.interface_matrix[y][x].reveal()
+        max_y: int = self.__gameCore.getNumberOfNodesInVerticalAxis()
+        max_x: int = self.__gameCore.getNumberOfNodesInHorizontalAxis()
+        for y in range(0, max_y):
+            for x in range(0, max_x):
+                self.IO_nodeMatrix[y][x].updateStatus(interfaceStatus=self.__gameCore.getInterfaceNode(y=y, x=x))
+                self.IO_nodeMatrix[y][x].reveal()
 
-    def _updateGamingStatus(self) -> None:
-        for y in range(0, self.__gameCore.getNumberOfNodesInVerticalAxis()):
-            for x in range(0, self.__gameCore.getNumberOfNodesInHorizontalAxis()):
-                self.interface_matrix[y][x].updateStatus(interfaceStatus=self.__gameCore.getInterfaceNode(y=y, x=x))
-                self.interface_matrix[y][x].updateGamingImage()
+    def _updateAllNodes(self) -> None:
+        max_y: int = self.__gameCore.getNumberOfNodesInVerticalAxis()
+        max_x: int = self.__gameCore.getNumberOfNodesInHorizontalAxis()
+        for y in range(0, max_y):
+            for x in range(0, max_x):
+                self.IO_nodeMatrix[y][x].updateStatus(interfaceStatus=self.__gameCore.getInterfaceNode(y=y, x=x))
+                self.IO_nodeMatrix[y][x].click()
 
-    def clickOnNodes(self, y: int, x: int, mouse: str):
+    def _updateInterface(self):
+        # [2]: Get the interface matrix & Update
+        # If the core does not allow to continue playing. Stopping the game
+        self._updateAllNodes() if self.__gameCore.checkIfPlayable() is True else self._revealAllNodes()
+
+        # [3]: Update when needed
+        self.update()
+
+    def multiHover(self, y: int, x: int) -> None:
+        doubleMouseNeighbor: List[Tuple[int, int]] = self.__gameCore.getNeighbor8Unrevealed(y=y, x=x)
+        if len(doubleMouseNeighbor) != 0:
+            for y_, x_ in doubleMouseNeighbor:
+                self.IO_nodeMatrix[y_][x_].hover()
+
+    def multiClick(self, y: int, x: int) -> None:
+        # Attached function that become an observer to receive - transmit communication
+        # [1]: Update the core matrix
+        self.__gameCore.multiClick(y=y, x=x)
+
+        # [2]: Get the interface matrix & Update
+        self._updateInterface()
+
+    def clickOnNodes(self, y: int, x: int, mouse: str) -> None:
         # Attached function that become an observer to receive - transmit communication
         # [1]: Update the core matrix
         self.__gameCore.click(y=y, x=x, message=mouse)
 
         # [2]: Get the interface matrix & Update
-        # If the core does not allow to continue playing. Stopping the game
-        if self.__gameCore.checkIfPlayable() is True:
-            self._updateGamingStatus()
-        else:
-            self._revealAllNodes()
-
-        # [3]: Update when needed
-        self.update()
+        self._updateInterface()
 
     def clickUndoButton(self) -> None:
         # This function only works if you can continue playing the game
@@ -549,11 +569,8 @@ class GameWindow(QMainWindow):
             # [1]: Click Undo Button
             self.__gameCore.clickUndo()
 
-            # [2]: Apply back into interface nodes
-            self._updateGamingStatus()
-
-            # [3]: Update when needed
-            self.update()
+            # [2]: Get the interface matrix & Update
+            self._updateInterface()
 
         return None
 
@@ -566,11 +583,8 @@ class GameWindow(QMainWindow):
             # [1]: Click Redo Button
             self.__gameCore.clickRedo()
 
-            # [2]: Apply back into interface nodes
-            self._updateGamingStatus()
-
-            # [3]: Update when needed
-            self.update()
+            # [2]: Get the interface matrix & Update
+            self._updateInterface()
 
         return None
 
@@ -722,9 +736,9 @@ class GameWindow(QMainWindow):
         self.RedoButton.show()
         self.UndoButton.show()
 
-        for y in range(len(self.interface_matrix)):
-            for x in range(len(self.interface_matrix[y])):
-                self.interface_matrix[y][x].show()
+        for y in range(len(self.IO_nodeMatrix)):
+            for x in range(len(self.IO_nodeMatrix[y])):
+                self.IO_nodeMatrix[y][x].show()
 
         self.displayGamingStatus = True
 
@@ -741,7 +755,7 @@ class GameWindow(QMainWindow):
         self.RedoButton.hide()
         self.UndoButton.hide()
 
-        for sub_matrix in self.interface_matrix:
+        for sub_matrix in self.IO_nodeMatrix:
             for node in sub_matrix:
                 node.hide()
 
@@ -785,7 +799,6 @@ class GameWindow(QMainWindow):
         self.keyClickEvent.append(a0.key())
 
     def keyReleaseEvent(self, a0: QKeyEvent) -> None:
-        # TODO
         if self.keyClickEvent[0] == Qt.Key_Return:
             if self.displayOpeningStatus is True:
                 self._makeDialog()
@@ -838,16 +851,16 @@ class GameWindow(QMainWindow):
 
     def displayInterfaceMatrixStatus(self) -> None:
         copy_version = np.zeros(shape=(self._playingMatrixSize[0], self._playingMatrixSize[1]), dtype=np.uint8)
-        for row in range(len(self.interface_matrix)):
-            for col in range(len(self.interface_matrix[row])):
-                copy_version[row, col] = self.interface_matrix[row][col].getInterfaceStatus()
+        for row in range(len(self.IO_nodeMatrix)):
+            for col in range(len(self.IO_nodeMatrix[row])):
+                copy_version[row, col] = self.IO_nodeMatrix[row][col].getInterfaceStatus()
             print(copy_version[row])
         return None
 
     def displayInterfaceNodesValue(self) -> None:
         copy_version = np.zeros(shape=(self._playingMatrixSize[0], self._playingMatrixSize[1]), dtype=np.int8)
-        for row in range(len(self.interface_matrix)):
-            for col in range(len(self.interface_matrix[row])):
-                copy_version[row, col] = self.interface_matrix[row][col].getValue()
+        for row in range(len(self.IO_nodeMatrix)):
+            for col in range(len(self.IO_nodeMatrix[row])):
+                copy_version[row, col] = self.IO_nodeMatrix[row][col].getValue()
             print(copy_version[row])
         return None
