@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import *
 from core import minesweeper
 from config import CORE_CONFIGURATION as CONFIG, getBombNumberImage, getFlagImage, getBombImage, getQuestionImage, \
     BOMB_NUMBER_DISPLAY as number_displayer, DIFFICULTY, DIALOG_SIZE, getDialogBackground, getExtraButton
+from time import sleep, time
 
 
 class HoveringButton(QPushButton):
@@ -107,7 +108,9 @@ class InterfaceNode(QLabel):
 
     __slots__ = ("y", "x", "_value", "_interfaceStatus", "_isMine", "_imageSize", "_imageInterface", "_scalingSize",
                  "_bombInterface", "_flagInterface", "_questionInterface", "_currentImage", "_message")
-    currentSignal = pyqtSignal(int, int, str)
+    singleMouseSignal = pyqtSignal(int, int, str)
+    multiHoverSignal = pyqtSignal(int, int)
+    multiPressedSignal = pyqtSignal(int, int)
 
     # The node for displaying function only
     # _imageInterface[0]: Starting Block when Playing, _imageInterface[1]: Value Block when Opened,
@@ -115,7 +118,8 @@ class InterfaceNode(QLabel):
     # _flagInterface[0]: Flag Node when Assigning, _flagInterface[1]: Flag Node if Defused,
     # _currentImage: Image at current state represents, use when hovering or pressed (clicked)
     def __init__(self, y: int, x: int, value: int, scalingFactor: Union[Tuple[float, float], float, int] = 1/6.5,
-                 slot: Callable = None, *args, **kwargs):
+                 singleSlot: Callable = None, multiHoverSlot: Callable = None, multiPressedSlot: Callable = None,
+                 *args, **kwargs):
         # [0]: Hyper-parameter Verification
         if True:
             if not isinstance(y, int):
@@ -157,7 +161,7 @@ class InterfaceNode(QLabel):
             # Adaptation Purpose Only
             self._imageInterface: Tuple[str, str] = (getBombNumberImage(key=None), getBombImage(key="Excited"))
         else:
-            print("False Nodes: y:{} - x:{} ---> Value: {}; isBomb: {}".format(self.y, self.x, self._value, self._isMine))
+            print(f"False Nodes: y:{self.y} - x:{self.x} ---> Value: {self._value}; isBomb: {self._isMine}")
             raise ValueError("There is no compatible function for notation")
         self._bombInterface: Tuple[str, str] = (getBombImage(key="Initial"), getBombImage(key="Excited"))
         self._flagInterface: Tuple[str, str] = (getFlagImage(key="Initial"), getFlagImage(key="Excited"))
@@ -167,9 +171,17 @@ class InterfaceNode(QLabel):
         self._message: Dict[int, str] = {Qt.LeftButton: "LeftMouse", Qt.RightButton: "RightMouse",
                                          Qt.MidButton: "LeftMouse", Qt.MiddleButton: "LeftMouse"}
 
+        self._multiClick: bool = False  # This attribute is used when we want to reveal maximized neighbor nodes
+        self._switchTime: float = 0
+
         # [3]: Building Function when instantiated
-        if slot is not None:
-            self.currentSignal.connect(slot)
+        if singleSlot is not None:
+            self.singleMouseSignal.connect(singleSlot)
+        if multiHoverSlot is not None:
+            self.multiHoverSignal.connect(multiHoverSlot)
+        if multiPressedSlot is not None:
+            self.multiPressedSignal.connect(multiPressedSlot)
+
         self._build()
 
     # ----------------------------------------------------------------------------------------------------------
@@ -204,7 +216,7 @@ class InterfaceNode(QLabel):
         self.update()
         self.hide()
 
-    def updateGamingImage(self) -> None:
+    def click(self) -> None:
         # Attached Function used to update game play
         if self._interfaceStatus == 1:
             self._currentImage = self._imageInterface[1]  # Representing Number
@@ -216,8 +228,7 @@ class InterfaceNode(QLabel):
             elif self._interfaceStatus == CONFIG["Question Notation"]:
                 self._currentImage = self._questionInterface
 
-        self.setPixmap(QPixmap(self._currentImage))
-        self.update()
+        self.press()
         self.show()
 
     def reveal(self) -> bool:
@@ -236,8 +247,7 @@ class InterfaceNode(QLabel):
                     self._currentImage = self._bombInterface[0]
 
             reveal_status = True
-            self.setPixmap(QPixmap(self._currentImage))
-            self.update()
+            self.press()
             self.show()
 
         return reveal_status
@@ -250,32 +260,51 @@ class InterfaceNode(QLabel):
 
     # ----------------------------------------------------------------------------------------------------------
     # [1]: Interface Function
+    def hover(self) -> None:
+        self.setPixmap(QPixmap(getBombNumberImage(key="NULL")))
+        self.update()
+
+    def press(self) -> None:
+        self.setPixmap(QPixmap(self._currentImage))
+        self.update()
+
+    def mousePressEvent(self, e: QMouseEvent):
+        if e.buttons() == Qt.LeftButton | Qt.RightButton and self._interfaceStatus == 1:
+            self._multiClick = True
+            self.multiHoverSignal.emit(self.y, self.x)
+            self.press()
+
     def mouseReleaseEvent(self, e: QMouseEvent):
-        if e.button() not in self._message.keys():
-            self.currentSignal.emit(self.y, self.x, self._message[Qt.LeftButton])
+        if self._multiClick is True and self._interfaceStatus == 1:
+            self.multiPressedSignal.emit(self.y, self.x)
         else:
-            self.currentSignal.emit(self.y, self.x, self._message[e.button()])
+            button = Qt.LeftButton if e.button() not in self._message.keys() else e.button()
+            self.singleMouseSignal.emit(self.y, self.x, self._message[button])
+        self._multiClick = False
+        self.update()
 
     def eventFilter(self, a0: 'QObject', a1: 'QEvent') -> bool:
         # a1.type() == QPushButton.enterEvent
         if a1.type() == QEvent.HoverEnter:
             self.enterEvent(a1.type())
             return True
-
         elif a1.type() == QEvent.HoverLeave:
             self.leaveEvent(a1.type())
             return True
-
+        elif a1.type() == QEvent.MouseButtonPress:
+            self.mousePressEvent(a1.type())
+            return True
+        elif a1.type() == QEvent.MouseButtonRelease:
+            self.mouseReleaseEvent(a1.type())
+            return True
         return False
 
     def enterEvent(self, a0: QEvent) -> None:
         if self._interfaceStatus != 1:
-            self.setPixmap(QPixmap(getBombNumberImage(key="NULL")))
-            self.update()
+            self.hover()
 
     def leaveEvent(self, a0: QEvent) -> None:
-        self.setPixmap(QPixmap(self._currentImage))
-        self.update()
+        self.press()
 
     # ----------------------------------------------------------------------------------------------------------
     # [x]: Getter & Check and Setter Function
@@ -303,13 +332,13 @@ class InterfaceNode(QLabel):
             print("No update has been applied")
 
 
-class GamingMode(QWidget):
+class DeclaringWidget(QWidget):
     # In this task, we want to make a dialog to communicate with user about the gaming mode they want to play.
     # In fact, we don't worry about the memory as it would be deleted after its complete its job
     currentSignal = pyqtSignal(int, int, str, str)
 
     def __init__(self, size: int = None, difficulty: str = None, playerName: str = None, *args, **kwargs):
-        super(GamingMode, self).__init__(*args, **kwargs)
+        super(DeclaringWidget, self).__init__(*args, **kwargs)
 
         # [1.1]: Build a dialog to enable user-computer communication
         self.setFixedSize(*DIALOG_SIZE)
@@ -345,7 +374,7 @@ class GamingMode(QWidget):
         InformationSize: Tuple[int, int] = (95, 60)
 
         # ----------------------------------------------------------------------------------------------------------
-        # [2.1]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
+        # [2.1]: Setup difficulty Level based on its associated value --> self.difficulty_comboBox
         self._difficultyLevel: Tuple[str] = tuple(list(DIFFICULTY.keys()))
 
         self.difficulty_info.setText("Difficulty: ")
@@ -357,7 +386,7 @@ class GamingMode(QWidget):
             self.difficulty_comboBox.setCurrentIndex(1)
         else:
             self.difficulty_comboBox.setCurrentIndex(self._difficultyLevel.index(difficulty))
-        self.difficulty_comboBox.setPlaceholderText("Choose Your Difficulty Level: ")
+        self.difficulty_comboBox.setPlaceholderText("Choose Your difficulty Level: ")
 
         # [2.2]: Setup Size for Playing Matrix --> self.matrix_comboBox
         start_size, end_size = 8, 99
@@ -375,7 +404,7 @@ class GamingMode(QWidget):
             self.matrix_comboBox.setCurrentIndex(size - start_size)
         self.matrix_comboBox.setPlaceholderText("Choose Your Matrix Size: ")
 
-        # [2.3]: Setup Difficulty Level based on its associated value --> self.difficulty_comboBox
+        # [2.3]: Setup difficulty Level based on its associated value --> self.difficulty_comboBox
         self.name_info.setText("Your Name: ")
         self.name_info.setGeometry(10, 150, *InformationSize)
 
@@ -402,7 +431,7 @@ class GamingMode(QWidget):
             self.setVisible(True)
             self.setFocus()
 
-        # [2.1]: Initialize Difficulty
+        # [2.1]: Initialize difficulty
         if True:
             self.difficulty_info.setEnabled(True)
             self.difficulty_info.setMouseTracking(True)
@@ -439,7 +468,8 @@ class GamingMode(QWidget):
             self.matrix_comboBox.setVisible(True)
             self.matrix_comboBox.setFocus()
             self.matrix_comboBox.setFont(QFont("Times New Roman", 13))
-            self.matrix_comboBox.setStyleSheet("color: yellow; font: bold; border-style: outset; background: transparent")
+            self.matrix_comboBox.setStyleSheet("color: yellow; font: bold; border-style: outset; "
+                                               "background: transparent")
             self.matrix_comboBox.setDuplicatesEnabled(False)
 
         # [2.3]: Initialize Name
