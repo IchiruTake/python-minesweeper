@@ -504,9 +504,8 @@ class minesweeper:
                     contain_bomb = True
 
             if contain_bomb is False:
-                # No bomb has been found = Safe; So, we would reveal all the nodes that has been accurately marked.
-                # An optimized version is saved all current state first, then reveal all nodes without saving to
-                # avoid memory burden.
+                # No bomb has been found = Safe; So, we would save all current state first, then reveal all nodes
+                # without saving to avoid memory burden.
                 self._savePreviousState()
                 for y_, x_ in neighborEightLocation:
                     self.click(y=y_, x=x_, message="LeftMouse", enableSaving=False)
@@ -560,7 +559,7 @@ class minesweeper:
                 elif self._checkInterfaceNode(y=y, x=x, value=self.QuestionNotation):
                     self._setInterfaceNode(y=y, x=x, value=0)
 
-            if self.getUnaccomplishedNodes() == 0 and self.checkIfVictory() is False:
+            if self.getUnaccomplishedNodes() == 0 and self.checkIfVictory() is False and self.getRemainingFlags() == 0:
                 self.PlayingStatus = False
                 self.VictoryStatus = True
 
