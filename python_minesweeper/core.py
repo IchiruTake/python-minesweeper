@@ -13,7 +13,8 @@ class minesweeper:
     + self.__coreMatrix: The main matrix used to defined everything needed. Once assigned, unchanged attribute
     + self.interface_matrix: The matrix that user can see on the screen. Attached to the interface
     """
-    def __init__(self, size: Union[int, Tuple[int, int]] = 16, difficulty: str = "Medium", verbose: bool = False):
+    def __init__(self, size: Union[int, Tuple[int, int]] = 16, difficulty: str = "Medium", verbose: bool = False,
+                 support_big_data: bool = False):
         # [0]: Hyper-parameter Verification
         np.set_printoptions(threshold=maxsize)
         if True:
@@ -92,7 +93,7 @@ class minesweeper:
         self.PlayingStatus: bool = True
 
         # [5]: Randomized Function & Extra Attribute
-        self.randomMaxSize: int = int(3e6)
+        self.randomMaxSize: int = int(3e6) if support_big_data is False else int(1e5)
         self.randomCounter: int = 0
         self._random_positions: np.ndarray = self.resetRandom()
 
@@ -203,7 +204,7 @@ class minesweeper:
         return False
 
     def _setInterfaceNode(self, y: int, x: int, value: int) -> None:
-        self.getInterfaceMatrix()[y, x] = value
+        self.interface_matrix[y, x] = value
 
     def _checkInterfaceNode(self, y: int, x: int, value: int) -> bool:
         return True if self.getInterfaceNode(y=y, x=x) == value else False
@@ -411,6 +412,21 @@ class minesweeper:
                 gc.collect()
         self.__undoStack.append(self.getInterfaceMatrix().copy())
 
+    def _saveState(self, interface_matrix: np.ndarray):
+        if len(self.__undoStack) > self._maxStackSizeForUndoRedo:
+            warning("The core: UNDO Stack has held too many object. Automatically delete some entity")
+            if CONFIG["Clean Time"] == 1:
+                self.__undoStack.pop(0)
+            else:
+                self.__undoStack = self.__undoStack[CONFIG["Clean Time"]:].copy()
+                gc.collect()
+
+        if interface_matrix.shape != self.interface_matrix.shape:
+            print("interface_matrix is not in accurate state")
+            raise TypeError("interface_matrix is not in accurate state")
+
+        self.__undoStack.append(interface_matrix.copy())
+
     # ----------------------------------------------------------------------------------------------------------------
     # [3]: User Interface Function
     def _recursiveDepthFirstFlow(self, index: int, recorded_stack: List[int]):
@@ -458,7 +474,53 @@ class minesweeper:
 
         pass
 
-    def click(self, y: int, x: int, message: str) -> None:
+    def getNeighbor8Unrevealed(self, y: int, x: int) -> List[Tuple[int, int]]:
+        neighborEightLocation: List[Tuple[int, int]] = self._getNeighbors8Axis(y=y, x=x)
+        counter: int = len(neighborEightLocation) - 1
+        while counter > -1:
+            y_, x_ = neighborEightLocation[counter]
+            if self._checkInterfaceNode(y=y_, x=x_, value=0) is False:
+                neighborEightLocation.pop(counter)
+            counter -= 1
+        return neighborEightLocation
+
+    def multiClick(self, y: int, x: int) -> None:
+        # To activate this function, there are some condition that needs to be validate
+        # [1]: Player must be playable (Of course)
+        # [2]: The node that you double click must have been previously opened
+        # [3]: The node open should not be an empty node
+
+        if self.checkIfPlayable() is False:
+            return None
+
+        if self._checkInterfaceNode(y=y, x=x, value=1) is True and self._checkCoreNode(y=y, x=x, value=0) is True:
+            return None
+
+        # [1]: Get all neighbors' position & Remove all invalid node(s)
+        # Valid Node is determined if that node was not revealed. Note that the valid node could be a bomb
+        neighborEightLocation = self.getNeighbor8Unrevealed(y=y, x=x)
+        print(f"Current State: ({y}, {x}) --> Neighbor: {neighborEightLocation}")
+        # [2]: If there are still some node that has been available: Do next move --> Else: No status would be save
+        if len(neighborEightLocation) != 0:
+            # Search Bomb
+            # If there is a bomb, no update would be doing
+            contain_bomb: bool = False
+            for y_, x_ in neighborEightLocation:
+                if self.checkIfBomb(y=y_, x=x_) is True:
+                    warning(f" Bomb has been found at ({y_}, {x_})")
+                    contain_bomb = True
+
+            if contain_bomb is False:
+                # No bomb has been found = Safe; So, we would reveal all the nodes that has been accurately marked.
+                # An optimized version is saved all current state first, then reveal all nodes without saving to
+                # avoid memory burden.
+                self._savePreviousState()
+                for y_, x_ in neighborEightLocation:
+                    self.click(y=y_, x=x_, message="LeftMouse", enableSaving=False)
+
+        return None
+
+    def click(self, y: int, x: int, message: str, enableSaving: bool = True) -> None:
         # Attach function used when clicking image on the interface nodes
         # Note that self.click() is also responsible for controlling whether playing can continue playing the game
         if message not in MOUSE_MESSAGE.keys():
@@ -467,7 +529,8 @@ class minesweeper:
 
         if self.checkIfPlayable() is True:
             # [1]: Save the previous state
-            self._savePreviousState()
+            if enableSaving is True:
+                self._savePreviousState()
 
             # [2]: Click
             # [2.1]: Click by left-mouse
@@ -579,9 +642,8 @@ class minesweeper:
                 difficulty_validation(key=difficulty)
                 self.difficulty = difficulty
 
-            self._bombNumber: int = int(DIFFICULTY[self.difficulty][0] * 0.5 * (self.size[0] + self.size[1]) **
+            self._bombNumber: int = int(DIFFICULTY[self.difficulty][0] * (self.size[0] / 2 + self.size[1] / 2) **
                                         DIFFICULTY[self.difficulty][1])
-
             pass
 
         # [2]: Reset everything having
@@ -628,7 +690,7 @@ class minesweeper:
             if 0 <= y - 1 < max_y:
                 position.append((y - 1, x))
             if 0 <= y + 1 < max_y:
-                position.append((y - 1, x))
+                position.append((y + 1, x))
 
         if 0 <= y < max_y:
             if 0 <= x - 1 < max_x:
@@ -658,13 +720,17 @@ class minesweeper:
     def getCoreMatrix(self) -> np.ndarray:
         return self.__coreMatrix.copy()
 
-    def getHashingCoreMatrix(self, minimum_mode: bool = False) -> np.ndarray:
-        matrix = self.getCoreMatrix()
+    def getHashingCoreMatrix(self, extraHash: bool = False) -> np.ndarray:
+        matrix: np.ndarray = self.getCoreMatrix()
         bomb_location: List[Tuple[int, int]] = self.getBombPositions()
-        for y, x in bomb_location:
-            respectivePosition = self._getNeighbors8Axis(y=y, x=x)
-            matrix[y, x] = min([self.getCoreNode(y=y_, x=x_) for y_, x_ in respectivePosition]) \
-                if minimum_mode is True else max([self.getCoreNode(y=y_, x=x_) for y_, x_ in respectivePosition])
+        if extraHash is True:
+            for y, x in bomb_location:
+                respectivePosition = self._getNeighbors8Axis(y=y, x=x)
+                matrix[y, x] = max([matrix[y_, x_] for y_, x_ in respectivePosition]) + 1
+        else:
+            for y, x in bomb_location:
+                respectivePosition = self._getNeighbors8Axis(y=y, x=x)
+                matrix[y, x] = max([matrix[y_, x_] for y_, x_ in respectivePosition])
         return matrix
 
     def getCoreNode(self, y: int, x: int) -> np.integer:
@@ -724,16 +790,25 @@ class minesweeper:
     def identifyBombByTanh(self) -> np.ndarray:
         # If tanhMatrix, convert affection nodes first
         tanhMatrix = self.getCoreMatrix()
-        tanhMatrix[tanhMatrix == 0] = -1
         for value in range(1, 9):
-            tanhMatrix[tanhMatrix == value] = -1
-        tanhMatrix[tanhMatrix == self.BombNotation] = 1
+            tanhMatrix[tanhMatrix == value] = 1
+        tanhMatrix[tanhMatrix == self.BombNotation] = 2
 
         return tanhMatrix
 
+    def identifyBombBySigmoid(self) -> np.ndarray:
+        # If tanhMatrix, convert affection nodes first
+        sigmoidMatrix = self.getCoreMatrix()
+        for value in range(1, 9):
+            sigmoidMatrix[sigmoidMatrix == value] = 0
+        sigmoidMatrix[sigmoidMatrix == self.BombNotation] = 1
+
+        return sigmoidMatrix
+
     def convertTanhToSigmoid(self, tanhMatrix: Optional[np.ndarray]) -> np.ndarray:
         sigmoidMatrix = self.identifyBombByTanh() if tanhMatrix is None else tanhMatrix.copy()
-        sigmoidMatrix[sigmoidMatrix == -1] = 0
+        sigmoidMatrix[sigmoidMatrix == 1] = 0
+        sigmoidMatrix[sigmoidMatrix == 2] = 1
 
         return sigmoidMatrix
 
@@ -770,19 +845,19 @@ class minesweeper:
         print("=" * 100)
         print()
 
-    def displayHashedCoreMatrix(self, minimum_mode: bool = False) -> None:
+    def displayHashedCoreMatrix(self, extraHash: bool = False) -> None:
         print("=" * 100)
         print("Hashing Core Matrix: ")
-        print(self.getHashingCoreMatrix(minimum_mode=minimum_mode))
+        print(self.getHashingCoreMatrix(extraHash=extraHash))
         print("Matrix Size: {} --> Association Node: {} <---> Bomb Number: {}"
               .format(self.size, self.getNumberOfNodes(), self.getBombNumber()))
         print("=" * 100)
         print()
 
-    def displayBetterHashedCoreMatrix(self, minimum_mode: bool = False) -> None:
+    def displayBetterHashedCoreMatrix(self, extraHash: bool = False) -> None:
         print("=" * 100)
         print("Better Hashing Core Matrix: ")
-        matrix: np.ndarray = np.array(self.getHashingCoreMatrix(minimum_mode=minimum_mode), dtype=np.object_)
+        matrix: np.ndarray = np.array(self.getHashingCoreMatrix(extraHash=extraHash), dtype=np.object_)
         matrix[matrix == 0] = "_"
         for value in range(1, 9):
             matrix[matrix == value] = str(value)
@@ -820,5 +895,6 @@ class minesweeper:
         ratio = self.getBombNumber() / self.getNumberOfNodes()
         print(f"(Size: {self.size} --- Difficulty: {self.difficulty}) --> Bomb Number(s): "
               f"{self.getBombNumber()} / {self.getNumberOfNodes()} "
-              f"(Ratio: {round(ratio * 100, 2)} % - Overwhelming: {9 * self.getBombNumber() >= self.getNumberOfNodes()})")
+              f"(Ratio: {round(ratio * 100, 2)} % - "
+              f"Overwhelming: {9 *self.getBombNumber() >= self.getNumberOfNodes()})")
     # [ ] --------------------------------------------------------
