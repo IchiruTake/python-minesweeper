@@ -443,20 +443,16 @@ class minesweeper:
             # If self.__core[y, x] = 0: No object found, continue to flow; else, don't flow it
             if self._checkCoreNode(y=y, x=x, value=0) is True:
                 # [3]: Flow the graph into four direction: Bottom, Top, Left, Right
-                # [3.1]: Flow to Bottom
-                if y + 1 < self.size[0]:
+                if y + 1 < self.size[0]:  # [3.1]: Flow to Bottom
                     self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y + 1, x=x),
                                                   recorded_stack=recorded_stack)
-                # [3.2]: Flow to Top
-                if y - 1 >= 0:
+                if y - 1 >= 0:  # [3.2]: Flow to Top
                     self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y - 1, x=x),
                                                   recorded_stack=recorded_stack)
-                # [3.2]: Flow to Left
-                if x - 1 >= 0:
+                if x - 1 >= 0:  # [3.2]: Flow to Left
                     self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y, x=x - 1),
                                                   recorded_stack=recorded_stack)
-                # [3.3]: Flow to Right
-                if x + 1 < self.size[1]:
+                if x + 1 < self.size[1]:  # [3.3]: Flow to Right
                     self._recursiveDepthFirstFlow(index=self._convertMatrixToGraphWithCache(y=y, x=x + 1),
                                                   recorded_stack=recorded_stack)
 
@@ -489,11 +485,8 @@ class minesweeper:
         # [1]: Player must be playable (Of course)
         # [2]: The node that you double click must have been previously opened
         # [3]: The node open should not be an empty node
-
-        if self.checkIfPlayable() is False:
-            return None
-
-        if self._checkInterfaceNode(y=y, x=x, value=1) is True and self._checkCoreNode(y=y, x=x, value=0) is True:
+        if self.checkIfPlayable() is False or self._checkInterfaceNode(y=y, x=x, value=1) is False or \
+                self._checkCoreNode(y=y, x=x, value=0) is True:
             return None
 
         # [1]: Get all neighbors' position & Remove all invalid node(s)
