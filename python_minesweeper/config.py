@@ -70,6 +70,18 @@ def getExtraButton(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
     raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
 
 
+def getNewExtraButton(key: Union[str, int]) -> Union[str, Tuple[int, int]]:
+    if key == -1:
+        return 534, 138
+
+    request_key: List[str] = ["Undo", "Undo-hover", "Predict", "Predict-hover", "Redo", "Redo-hover"]
+    if key in request_key:
+        return DIRECTORY + "/resources/images/extra/{}.png".format(key)
+
+    print("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+    raise ValueError("Invalid Key ({}). Only accept key = {} only".format(key, request_key))
+
+
 # -----------------------------------------------------------------------------------------------------------
 # Interface Association
 # [1]: Opening Interface
@@ -135,7 +147,7 @@ def getRelativePath(path: str) -> str:
 DIALOG_SIZE: Tuple[int, int] = (300, 300)
 CLOCK_UPDATE_SPEED: int = 100  # Update your time spent on the game (by milliseconds)
 UPDATING_TIMING: int = 1000
-VIEWING_TIME_FOR_TRANSFER: int = 2500
+VIEWING_TIME_FOR_TRANSFER: int = 1500
 NODES_SIZE: Tuple[int, int] = getBombNumberImage(key=-1)
 TABLE_VIEW: Tuple[int, int] = (500, 400)
 TABLE_MAX_DISPLAY: int = 20
@@ -163,7 +175,7 @@ CORE_CONFIGURATION: Dict[str, Union[int, float]] = \
         "Question Notation": -5,
         "Default Size": 15,
         "Maximum Stack": 48,
-        "Clean Time": 6,
+        "Clean Time": 8,
     }
 
 __EASY: Tuple[float, float] = (0.125, 1.75)
