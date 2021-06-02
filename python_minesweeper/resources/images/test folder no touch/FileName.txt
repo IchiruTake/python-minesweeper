@@ -1,1 +1,8 @@
-.
+Undo.png
+Redo.png
+Predict.png
+Undo-hover.png
+Redo-hover.png
+Predict-hover.png
+
+Size: (534, 138)
