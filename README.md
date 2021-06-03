@@ -7,16 +7,16 @@ Download: https://tom-pham.itch.io/python-minesweeper
 
 # Features:
 - _Depth First Flow in Minesweeper_: Inherited from Depth First Search + Apply Mathematical Function + Expand to Boundary from Center to any positions. ---> Time Complexity: O(N) <--> Space Complexity: O(1) (No Extra Adjacency Matrix | Dictionary)
-- Undo-Redo Button: Record the previous state to play with (Although you still be lose if clicked on mine)
-- (Local) Database Recording: Save your performance to get top
-- Image Hovering: Easier for viewing
-- Python Functions: (__slots__) This is attribute controlling small objects to avoid memory garbage. Practical Results shows that we accessed to its attribute faster by 15 - 20 % and reduce 5 - 10% memory due to the inavailability of __dict__ and __weakrefs__ (__slots__ replacement)
+- _Undo-Redo Button_: Record the previous state to play with (Although you still be lose if clicked on mine)
+- (Local) _Database Recording_: Save your performance to get top
+- _Image Hovering_: Easier for viewing
+- _Python Functions_: (__slots__) This is attribute controlling small objects to avoid memory garbage. Practical Results shows that we accessed to its attribute faster by 15 - 20 % and reduce 5 - 10% memory due to the inavailability of __dict__ and __weakrefs__ (__slots__ replacement)
+- _Support Solver_: Click both left and right mouse on uncovered nodes to obtain support to have faster when solving the game.
 
 # Achievement:
 - Modern GUI
 - Automatic Garbage Collection
 - Time & Memory 
-
 
 # Design Pattern:
 - Singleton: Guarantee that each object was run by its own & dependency state was transferred by message. There are no hidden attribute stored on other object. 
